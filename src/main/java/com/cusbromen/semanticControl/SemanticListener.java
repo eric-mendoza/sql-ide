@@ -1,14 +1,16 @@
-package com.brolius.semanticControl;
+/*
+package com.cusbromen.semanticControl;
 
-import com.brolius.antlr.decafBaseListener;
-import com.brolius.antlr.decafParser;
+import com.cusbromen.antlr.decafBaseListener;
+import com.cusbromen.antlr.decafParser;
+import com.cusbromen.antlr.sqlParser;
 import org.antlr.v4.runtime.TokenStream;
 
 import java.util.LinkedList;
 import java.util.List;
 
 public class SemanticListener extends decafBaseListener {
-    private decafParser parser;
+    private sqlParser parser;
     private boolean foundMain; // control for existance of 'main' method
 
     private List<String> semanticErrorsList; // list for semantic errors found
@@ -19,7 +21,7 @@ public class SemanticListener extends decafBaseListener {
 
     private MethodElement currentMethodContext; // to check the current context of variable declarations and operations
 
-    public SemanticListener(decafParser parser) {
+    public SemanticListener(sqlParser parser) {
         this.parser = parser;
         this.foundMain = false;
         this.semanticErrorsList = new LinkedList<>();
@@ -358,7 +360,7 @@ public class SemanticListener extends decafBaseListener {
     }
 
     @Override
-    public void exitStatement(decafParser.StatementContext ctx) {
+    public void exitStatement(sqlParser.StatementContext ctx) {
         String typeOf = "";
         if (ctx.methodCall() != null) {
             System.out.println("is method from stmt");
@@ -964,3 +966,4 @@ public class SemanticListener extends decafBaseListener {
         return semanticErrorsList;
     }
 }
+*/

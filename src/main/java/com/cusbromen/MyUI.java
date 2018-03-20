@@ -1,12 +1,12 @@
-package com.brolius;
+package com.cusbromen;
 
 import javax.print.PrintException;
 import javax.servlet.annotation.WebServlet;
 
-import com.brolius.antlr.CustomErrorListener;
-import com.brolius.semanticControl.SemanticListener;
-import com.brolius.antlr.decafLexer;
-import com.brolius.antlr.decafParser;
+import com.cusbromen.antlr.CustomErrorListener;
+import com.cusbromen.antlr.sqlLexer;
+import com.cusbromen.antlr.sqlParser;
+import com.cusbromen.semanticControl.Visitor;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.server.*;
@@ -23,6 +23,7 @@ import org.antlr.v4.gui.TreeViewer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.atn.PredictionMode;
 import org.antlr.v4.runtime.misc.Utils;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
@@ -44,8 +45,8 @@ import java.util.List;
 public class MyUI extends UI {
     private String editorInput; // actual input to compile
     private ParseTree grammarParseTree; // the generated parse tree
-    private decafParser grammarParser; // the generated parser
-    private decafLexer grammarLexer; // the generated lexer
+    private sqlParser grammarParser; // the generated parser
+    private sqlLexer grammarLexer; // the generated lexer
     private static final String endOfLine = "<br/>"; // EOF for tree visualization
     private int level = 0; // tree begin index level for tree visualization
     private String prettyFileTree; // a pretty tree visualization in text
@@ -99,25 +100,28 @@ public class MyUI extends UI {
 
                 /* generate a stream from input and create tree */
                 CharStream charStream = CharStreams.fromString(editorInput);
-                grammarLexer = new decafLexer(charStream);
+                grammarLexer = new sqlLexer(charStream);
                 grammarLexer.removeErrorListeners();
                 grammarLexer.addErrorListener(new CustomErrorListener(consolePanelLayout));
                 CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
-                grammarParser = new decafParser(commonTokenStream);
+
+                grammarParser = new sqlParser(commonTokenStream);
                 grammarParser.removeErrorListeners();
                 grammarParser.addErrorListener(new CustomErrorListener(consolePanelLayout));
 
-                grammarParseTree = grammarParser.program();
+                grammarParser.getInterpreter().setPredictionMode(PredictionMode.LL_EXACT_AMBIG_DETECTION);  // todo Eliminar despues de eliminar cualquier ambiguedad
+
+                grammarParseTree = grammarParser.expression();
                 Label lbl1 = new Label("<strong>TREE>> </strong>" + grammarParseTree.toStringTree(grammarParser)
                         + "<br><i>For a cleaner tree, click the \"Tree representation \" button.<i>", ContentMode.HTML);
                 lbl1.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
                 //consolePanelLayout.addComponent(lbl1);
 
                 // SEMANTIC CONTROL ------------------------------------------------------------------------------------
-                ParseTreeWalker walker = new ParseTreeWalker();
-                SemanticListener semanticListener = new SemanticListener(grammarParser);
-                walker.walk(semanticListener, grammarParseTree);
-                List<String> errList = semanticListener.getSemanticErrorsList();
+                Visitor visitor = new Visitor();
+                visitor.visit(grammarParseTree);
+
+                List<String> errList = visitor.getSemanticErrorsList();
 
                 if (!errList.isEmpty()) {
                     for (String error : errList) {
