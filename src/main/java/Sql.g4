@@ -1,7 +1,7 @@
 // SQL grammar for ANTLR v4
 // @authors: Jose Custodio, Eric Mendoza, Gabriel Brolo
 
-grammar sql;
+grammar Sql;
 
 // -------------------------------- LEXER --------------------------------------
 fragment DIGIT:     '0'..'9' ;
@@ -38,7 +38,7 @@ alter_database
     ;
 
 drop_database
-    :  'DROP' ' DATABASE' ID ';'
+    :  'DROP' 'DATABASE' ID ';'
     ;
 
 show_databases
