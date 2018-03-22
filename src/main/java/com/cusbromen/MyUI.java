@@ -4,8 +4,8 @@ import javax.print.PrintException;
 import javax.servlet.annotation.WebServlet;
 
 import com.cusbromen.antlr.CustomErrorListener;
-import com.cusbromen.antlr.sqlLexer;
-import com.cusbromen.antlr.sqlParser;
+import com.cusbromen.antlr.SqlLexer;
+import com.cusbromen.antlr.SqlParser;
 import com.cusbromen.semanticControl.Visitor;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
@@ -44,8 +44,8 @@ import java.util.List;
 public class MyUI extends UI {
     private String editorInput; // actual input to compile
     private ParseTree grammarParseTree; // the generated parse tree
-    private sqlParser grammarParser; // the generated parser
-    private sqlLexer grammarLexer; // the generated lexer
+    private SqlParser grammarParser; // the generated parser
+    private SqlLexer grammarLexer; // the generated lexer
     private static final String endOfLine = "<br/>"; // EOF for tree visualization
     private int level = 0; // tree begin index level for tree visualization
     private String prettyFileTree; // a pretty tree visualization in text
@@ -99,12 +99,12 @@ public class MyUI extends UI {
 
                 /* generate a stream from input and create tree */
                 CharStream charStream = CharStreams.fromString(editorInput);
-                grammarLexer = new sqlLexer(charStream);
+                grammarLexer = new SqlLexer(charStream);
                 grammarLexer.removeErrorListeners();
                 grammarLexer.addErrorListener(new CustomErrorListener(consolePanelLayout));
                 CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 
-                grammarParser = new sqlParser(commonTokenStream);
+                grammarParser = new SqlParser(commonTokenStream);
                 grammarParser.removeErrorListeners();
                 grammarParser.addErrorListener(new CustomErrorListener(consolePanelLayout));
 
