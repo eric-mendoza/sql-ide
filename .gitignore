@@ -35,6 +35,9 @@ uitest/src/main/themes/VAADIN/themes/**/styles.scss.cache
 # Mac
 *.DS_Store
 
+*.jpg
+Thumbs.db
+
 # Python
 scripts/*.pyc
 
