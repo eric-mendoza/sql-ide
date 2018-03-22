@@ -1,10 +1,16 @@
 package com.cusbromen.semanticControl;
 import com.cusbromen.antlr.SqlBaseVisitor;
 import com.cusbromen.antlr.SqlParser;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
+import java.io.*;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings("unchecked") // JSON's fault
 public class Visitor extends SqlBaseVisitor<String> {
     private List<String> semanticErrorsList; // list for semantic errors found
 
@@ -17,9 +23,67 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitExpression(ctx);
     }
 
-
+    /** 'CREATE' 'DATABASE' ID ';' */
     @Override
     public String visitCreate_database(SqlParser.Create_databaseContext ctx) {
+        String id = ctx.ID().getSymbol().getText();
+
+        JSONParser parser = new JSONParser();  // Used to read an existing JSON file
+
+        // Try to open the master file (dbs.json) on metadata directory
+        try {
+            File dbs = new File("metadata/dbs.json"); //chao pollo, arroz cerdo
+
+            // The json was created
+            if (!dbs.exists()){
+                dbs.getParentFile().mkdir();
+                dbs.createNewFile();
+                PrintWriter writer = new PrintWriter(dbs, "UTF-8");
+                System.out.println(dbs.canWrite());
+                // Create bject with all dbs
+                JSONObject dbsJson = new JSONObject();
+
+                // Create db initial metadata
+                JSONObject newDb = new JSONObject();
+                newDb.put("noTables", 0);
+
+                // Add new db
+                dbsJson.put(id, newDb);
+
+                // Write to file
+                writer.write(dbsJson.toJSONString());
+
+                writer.close();
+            }
+
+            // Json already exists
+            else {
+                JSONObject dbsJson = (JSONObject) parser.parse(new FileReader(dbs));
+
+                // Verify if db already exists
+                if (dbsJson.get(id) == null){
+                    JSONObject newDb = new JSONObject();
+                    newDb.put("noTables", 0);
+                    dbsJson.put(id, newDb);
+
+                    // Overwrite existing json
+                    PrintWriter writer = new PrintWriter(dbs, "UTF-8");
+                    writer.write(dbsJson.toJSONString());
+                    writer.close();
+                }
+
+                // DB already exists
+                else {
+                    semanticErrorsList.add("Error: Database '" + id + "' already exists! Line: " + ctx.start.getLine());
+                }
+
+            }
+
+
+        } catch (ParseException | IOException e) {
+            System.err.println(e.toString());
+        }
+
         return super.visitCreate_database(ctx);
     }
 
