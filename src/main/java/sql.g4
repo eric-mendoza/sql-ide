@@ -8,7 +8,7 @@ fragment DIGIT:     '0'..'9' ;
 NUMBER:             DIGIT(DIGIT)* ;
 ID:                 (('a'..'z'|'A'..'Z' | '_') ((DIGIT)*))+ ;
 NEWLINE:            '\r'? '\n' ;
-WHITESPACE:         [ \t\r\n\f]+  ->channel(HIDDEN) ;
+WHITESPACE:         [\t\r\n\f ]+ ->channel(HIDDEN) ;
 COMMENTS:           '--' ~('\r' | '\n' )*  -> channel(HIDDEN) ;
 
 // ------------------------------- PARSER --------------------------------------
