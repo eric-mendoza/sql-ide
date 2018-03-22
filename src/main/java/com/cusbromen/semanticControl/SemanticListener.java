@@ -1,15 +1,15 @@
 /*
 package com.cusbromen.semanticControl;
 
-import com.cusbromen.antlr.decafBaseListener;
-import com.cusbromen.antlr.decafParser;
+import com.cusbromen.antlr.sqlBaseListener;
+import com.cusbromen.antlr.sqlParser;
 import com.cusbromen.antlr.sqlParser;
 import org.antlr.v4.runtime.TokenStream;
 
 import java.util.LinkedList;
 import java.util.List;
 
-public class SemanticListener extends decafBaseListener {
+public class SemanticListener extends sqlBaseListener {
     private sqlParser parser;
     private boolean foundMain; // control for existance of 'main' method
 

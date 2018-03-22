@@ -2,16 +2,22 @@ package com.cusbromen.semanticControl;
 import com.cusbromen.antlr.sqlBaseVisitor;
 import com.cusbromen.antlr.sqlParser;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Visitor extends sqlBaseVisitor<String> {
     private List<String> semanticErrorsList; // list for semantic errors found
+
+    public Visitor() {
+        this.semanticErrorsList = new ArrayList<>();
+    }
 
     @Override
     public String visitExpression(sqlParser.ExpressionContext ctx) {
         return super.visitExpression(ctx);
     }
 
+    /** 'CREATE' 'DATABASE' ID ';' */
     @Override
     public String visitCreate_database(sqlParser.Create_databaseContext ctx) {
         return super.visitCreate_database(ctx);
