@@ -237,14 +237,10 @@ public class MyUI extends UI {
             consolePanelLayout.removeAllComponents();
         });
 
-        Label mainlbl = new Label("<div style=\"font-size: 1.8em;\"><center><strong>VaaDecaf</strong></center><div>", ContentMode.HTML);
-        mainlbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
-
-        Label subtitle = new Label("<center>A Decaf IDE made with Java, ANTLR and the Vaadin Framework</center>", ContentMode.HTML);
-        subtitle.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
-
+        // LAYOUT
         VerticalLayout pagelayout = new VerticalLayout();
-        pagelayout.addComponents(mainlbl, subtitle, hLayout);
+        pagelayout.addComponents(hLayout);
+        pagelayout.setSizeFull();
 
         HorizontalLayout editorButtonsLayout = new HorizontalLayout();
         editorButtonsLayout.setSizeFull();

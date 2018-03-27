@@ -79,7 +79,15 @@ public class Visitor extends SqlBaseVisitor<String> {
 
     @Override
     public String visitShow_databases(SqlParser.Show_databasesContext ctx) {
-        return super.visitShow_databases(ctx);
+        String returnedVal = symbolTable.showDatabases(jsonParser);
+
+        if (returnedVal.equals("0")) {
+            semanticErrorsList.add("NO DATABASES.");
+        } else {
+            successMessages.add("Successfull operation. <strong>SHOW DATABASES</strong>: <br>" + returnedVal);
+        }
+
+        return "void";
     }
 
     /** 'USE' 'DATABASE' ID ';' */
@@ -160,7 +168,15 @@ public class Visitor extends SqlBaseVisitor<String> {
 
     @Override
     public String visitShow_tables(SqlParser.Show_tablesContext ctx) {
-        return super.visitShow_tables(ctx);
+        String returnedVal = symbolTable.showTables(dbInUse, jsonParser);
+
+        if (returnedVal.equals("0")) {
+            semanticErrorsList.add("Database <strong>" + dbInUse + "</strong> doesn't exist. Line: " + ctx.start.getLine());
+        } else {
+            successMessages.add("Successfull operation. <strong>SHOW TABLES</strong> in database " + dbInUse + ": <br>" + returnedVal);
+        }
+
+        return "void";
     }
 
     @Override

@@ -13,11 +13,49 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 public class SymbolTableHashMap implements SymbolTable{
     private JSONObject metadata;
     private String dbsJsonPath;
+
+    public String showDatabases(JSONParser jsonParser) {
+        if (!metadata.isEmpty()) {
+            Set<?> keys = metadata.keySet();
+            String dbList = "";
+
+            for (Object key : keys) {
+                dbList = dbList + "*\t" + key.toString() + "<br>";
+            }
+
+            return dbList;
+        } else {
+            return "0";
+        }
+    }
+
+    public String showTables(String currentDb, JSONParser jsonParser) {
+        JSONObject selectedDb;
+        String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
+        File db = new File(dbPath);
+
+        try {
+            if (!db.exists()) { return "0"; } else {
+                selectedDb = (JSONObject) jsonParser.parse(new FileReader(dbPath));
+                Set<?> keys = selectedDb.keySet();
+                String tableList = "";
+
+                for (Object key : keys) {
+                    tableList = tableList + "*\t" + key.toString() + "<br>";
+                }
+
+                return tableList;
+            }
+        } catch (Exception e) { e.printStackTrace(); return "0";}
+    }
 
     public int alterTable(String currentDb, SqlParser.Alter_tableContext ctx, JSONParser jsonParser) {
         // return 0: db does not exist.
