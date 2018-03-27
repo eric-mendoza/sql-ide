@@ -1,11 +1,10 @@
 package com.cusbromen;
 
+import com.cusbromen.antlr.CustomErrorListener;
 import com.cusbromen.antlr.SqlLexer;
 import com.cusbromen.antlr.SqlParser;
 import com.cusbromen.semanticControl.Visitor;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.atn.PredictionMode;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -13,22 +12,25 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        CharStream charStream = CharStreams.fromString("CREATE DATABASE Jean;");
+        CharStream charStream = CharStreams.fromString("USE DATABASE pupa1;");
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 
         SqlParser grammarParser = new SqlParser(commonTokenStream);
 
+
         grammarParser.getInterpreter().setPredictionMode(PredictionMode.LL_EXACT_AMBIG_DETECTION);  // todo Eliminar despues de eliminar cualquier ambiguedad
+        Visitor visitor = new Visitor();
+        grammarParser.removeErrorListeners();
+        grammarParser.addErrorListener(new CustomErrorListener(null, visitor));
 
         ParseTree grammarParseTree = grammarParser.expression();
-
-        // SEMANTIC CONTROL ------------------------------------------------------------------------------------
-        Visitor visitor = new Visitor();
-        visitor.visit(grammarParseTree);
+        if (!visitor.hasSyntaxError()) visitor.visit(grammarParseTree);
 
         List<String> errList = visitor.getSemanticErrorsList();
+        List<String> messagesList = visitor.getSuccessMessages();
 
-        System.out.println(errList.toString());
+        System.err.println(errList.toString());
+        System.out.println(messagesList.toString());
     }
 }

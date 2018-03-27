@@ -1,5 +1,6 @@
 package com.cusbromen.antlr;
 
+import com.cusbromen.semanticControl.Visitor;
 import com.vaadin.server.Page;
 import com.vaadin.server.Sizeable;
 import com.vaadin.shared.Position;
@@ -14,18 +15,23 @@ import org.antlr.v4.runtime.Recognizer;
 public class CustomErrorListener extends BaseErrorListener {
     //public static CustomErrorListener INSTANCE = new CustomErrorListener();
     Layout layout;
+    Visitor visitor;
 
-    public CustomErrorListener(Layout layout) {
+    public CustomErrorListener(Layout layout, Visitor visitor) {
         this.layout = layout;
+        this.visitor = visitor;  // This is going to be used to not execute semantic rules if an error exists
     }
 
     @Override
     public void syntaxError(Recognizer<?,?> recognizer, Object offSymb, int line, int charPos, String msg, RecognitionException e) {
+        visitor.setSyntaxError(true);
         String sourceName = recognizer.getInputStream().getSourceName();
         if (!sourceName.isEmpty()) {
             sourceName = String.format("%s:%d:%d: ", sourceName, line, charPos);
         }
 
+        // TODO Descomentar esto para ser usado con VAADIN
+        /*
         Label lbl = new Label("<strong>ERROR >> </strong> Line <strong>"+line+":"+charPos+ "</strong> "+msg, ContentMode.HTML);
         lbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
         layout.addComponent(lbl);
@@ -34,8 +40,8 @@ public class CustomErrorListener extends BaseErrorListener {
                 Notification.Type.ERROR_MESSAGE, true);
         notification.setDelayMsec(4000);
         notification.setPosition(Position.BOTTOM_RIGHT);
-        notification.show(Page.getCurrent());
+        notification.show(Page.getCurrent());*/
 
-        System.out.println(sourceName+"line "+line+":"+charPos+ " "+msg);
+        System.err.println(sourceName+"line "+line+":"+charPos+ " "+msg);
     }
 }

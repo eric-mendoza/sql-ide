@@ -1,28 +1,32 @@
 package com.cusbromen.semanticControl;
 import com.cusbromen.antlr.SqlBaseVisitor;
 import com.cusbromen.antlr.SqlParser;
-import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
-@SuppressWarnings("unchecked") // JSON's fault
 public class Visitor extends SqlBaseVisitor<String> {
-    private List<String> semanticErrorsList; // list for semantic errors found
+    private List<String> semanticErrorsList, successMessages; // list for semantic errors found
     private JSONParser jsonParser;
-    private String dbsJsonPath;
+    private String dbsJsonPath, dbInUse;
+    private SymbolTableHashMap symbolTable;
+    private String lastDbUsedPath = "metadata/lastDbUsed";
+    private boolean syntaxError;
 
     public Visitor() {
         this.semanticErrorsList = new ArrayList<>();
+        successMessages = new ArrayList<>();
         jsonParser = new JSONParser();  // Used to read an existing JSON file
         dbsJsonPath = "metadata/dbs.json";
+        symbolTable = new SymbolTableHashMap();
+        symbolTable.readMetadata(dbsJsonPath, jsonParser);  // Load the metadata of dbs before working
+        dbInUse = loadLastUsedDb();
+        syntaxError = false;
+
+        // TODO: Este mensaje tendrá que ser mostrado por la gui
+        System.out.println("DB in use: " + getDbInUse());
     }
 
     @Override
@@ -35,68 +39,14 @@ public class Visitor extends SqlBaseVisitor<String> {
     public String visitCreate_database(SqlParser.Create_databaseContext ctx) {
         String id = ctx.ID().getSymbol().getText();
 
-        // Try to open the master file (dbs.json) on metadata directory
-        try {
-            File dbs = new File(dbsJsonPath);
-
-            // The json was created
-            if (!dbs.exists()){
-                dbs.getParentFile().mkdir();
-                dbs.createNewFile();
-                PrintWriter writer = new PrintWriter(dbs, "UTF-8");
-                System.out.println(dbs.canWrite());
-                // Create bject with all dbs
-                JSONObject dbsJson = new JSONObject();
-
-                // Create db initial metadata
-                JSONObject newDb = new JSONObject();
-                newDb.put("noTables", 0);
-
-                // Add new db
-                dbsJson.put(id, newDb);
-
-                // Write to file
-                writer.write(dbsJson.toJSONString());
-
-                writer.close();
-            }
-
-            // Json already exists
-            else {
-                JSONObject dbsJson = getDbsJson();
-
-                // Verify if db already exists
-                if (dbsJson.get(id) == null){
-                    JSONObject newDb = new JSONObject();
-                    newDb.put("noTables", 0);
-                    dbsJson.put(id, newDb);
-
-                    // Overwrite existing json
-                    PrintWriter writer = new PrintWriter(dbs, "UTF-8");
-                    writer.write(dbsJson.toJSONString());
-                    writer.close();
-                }
-
-                // DB already exists
-                else {
-                    semanticErrorsList.add("Error: Database '" + id + "' already exists! Line: " + ctx.start.getLine());
-                    return "error";
-                }
-
-            }
-
-            // Create a directory for the new db
-            File newDb = new File("metadata/" + id + "/" + id + ".json");
-            newDb.getParentFile().mkdir();
-            newDb.createNewFile();
-
-            // TODO ¿Se debería crear de un solo el BTree de la base de datos?
-
-
-        } catch (IOException e) {
-            System.err.println(e.toString());
+        int created = symbolTable.createDb(id);
+        // DB already exists
+        if (created == 1) {
+            semanticErrorsList.add("Error: Database '" + id + "' already exists! Line: " + ctx.start.getLine());
+            return "error";
         }
 
+        successMessages.add("Message: Successful creation of database '" + id + "'.");
         return "void";
     }
 
@@ -106,44 +56,19 @@ public class Visitor extends SqlBaseVisitor<String> {
         String oldName = ctx.ID(0).getSymbol().getText();
         String newName = ctx.ID(1).getSymbol().getText();
 
-        // Get dbs.json
-        JSONObject dbsJson = getDbsJson();
+        int result = symbolTable.renameDb(oldName, newName);
 
-        // If the DB exists
-        if (dbsJson.get(oldName) != null){
-            // There shouldn't be a db with the new name
-            if (dbsJson.get(newName) != null){
-                semanticErrorsList.add("Error: Couldn't rename database, '" + newName + "' is already in use! Line: " + ctx.start.getLine());
-                return "error";
-            }
-
-            String newJson = dbsJson.toJSONString().replaceAll(oldName, newName);
-
-            // Overwrite existing json
-            try {
-                File dbsJsonFile = new File(dbsJsonPath);
-                PrintWriter writer = new PrintWriter(dbsJsonFile, "UTF-8");
-                writer.write(newJson);
-                writer.close();
-
-                // TODO cambiar nombre en carpetas
-                // Create new destiny path
-                new File("metadata/" + newName).mkdir();
-                Path fileToMovePath = Paths.get("metadata/" + oldName + "/" + oldName + ".json");
-                Path targetPath = Paths.get("metadata/" + newName + "/" + newName + ".json");
-
-                Files.move(fileToMovePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-
-            } catch (IOException e){
-                e.printStackTrace();
-            }
-
-
-        } else {
-            semanticErrorsList.add("Error: Database '" + oldName + "' doesn't exists! Line: " + ctx.start.getLine());
+        if (result == 1){
+            semanticErrorsList.add("Error: The database '" + oldName + "' doesn't exists! Line: " + ctx.start.getLine());
             return "error";
         }
 
+        else if (result == 2){
+            semanticErrorsList.add("Error: The database '" + newName + "' already exists! Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        successMessages.add("Message: Database successfully renamed from '" + oldName + "' to '" + newName + "'.");
         return "void";
     }
 
@@ -157,9 +82,43 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitShow_databases(ctx);
     }
 
+    /** 'USE' 'DATABASE' ID ';' */
     @Override
     public String visitUse_database(SqlParser.Use_databaseContext ctx) {
-        return super.visitUse_database(ctx);
+        String db = ctx.ID().getSymbol().getText();
+        if (symbolTable.dbExists(db)){
+            if (!db.equals(dbInUse)){
+                dbInUse = db;
+                successMessages.add("Message: You are using database '" + db + "' now.");
+
+                try {
+                    // See if lastdb dir exists
+                    File lastDb = new File(lastDbUsedPath);
+
+                    if (!lastDb.exists()){
+                        lastDb.createNewFile();
+                    }
+
+                    PrintWriter writer = new PrintWriter(lastDb, "UTF-8");
+                    // Write to file
+                    writer.write(dbInUse);
+
+                    writer.close();
+
+                } catch (IOException e){
+                    return "error";
+                }
+
+                return "void";
+            } else {
+                successMessages.add("Message: Database '" + db + "' was already in use.");
+                return "void";
+            }
+
+        } else {
+            semanticErrorsList.add("Error: Database '" + db + "' doesn't exists! Line: " + ctx.start.getLine());
+            return "error";
+        }
     }
 
     @Override
@@ -321,12 +280,38 @@ public class Visitor extends SqlBaseVisitor<String> {
         return semanticErrorsList;
     }
 
-    public JSONObject getDbsJson(){
-        try {
-            return  (JSONObject) jsonParser.parse(new FileReader(dbsJsonPath));
-        } catch (IOException | ParseException e) {
-            e.printStackTrace();
+    public List<String> getSuccessMessages() {
+        return successMessages;
+    }
+
+    private String loadLastUsedDb() {
+        File lastDb = new File(lastDbUsedPath);
+        if (lastDb.exists()){
+            try {
+                BufferedReader fileReader = new BufferedReader(new FileReader(lastDb));
+                return fileReader.readLine();
+
+            } catch (IOException e) {
+                return null;
+            }
+        } else {
             return null;
         }
+    }
+
+    public String getDbInUse(){
+        if (dbInUse != null){
+            return dbInUse;
+        } else {
+            return "none";
+        }
+    }
+
+    public boolean hasSyntaxError() {
+        return syntaxError;
+    }
+
+    public void setSyntaxError(boolean syntaxError) {
+        this.syntaxError = syntaxError;
     }
 }

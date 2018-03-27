@@ -94,6 +94,9 @@ public class MyUI extends UI {
         /* button listeners */
         button.addClickListener(e -> {
             if (editorInput != null) {
+                // Create visitor
+                Visitor visitor = new Visitor();
+
                 /* clear the console */
                 consolePanelLayout.removeAllComponents();
 
@@ -101,12 +104,12 @@ public class MyUI extends UI {
                 CharStream charStream = CharStreams.fromString(editorInput);
                 grammarLexer = new SqlLexer(charStream);
                 grammarLexer.removeErrorListeners();
-                grammarLexer.addErrorListener(new CustomErrorListener(consolePanelLayout));
+                grammarLexer.addErrorListener(new CustomErrorListener(consolePanelLayout, visitor));
                 CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 
                 grammarParser = new SqlParser(commonTokenStream);
                 grammarParser.removeErrorListeners();
-                grammarParser.addErrorListener(new CustomErrorListener(consolePanelLayout));
+                grammarParser.addErrorListener(new CustomErrorListener(consolePanelLayout, visitor));
 
                 grammarParser.getInterpreter().setPredictionMode(PredictionMode.LL_EXACT_AMBIG_DETECTION);  // todo Eliminar despues de eliminar cualquier ambiguedad
 
@@ -117,7 +120,6 @@ public class MyUI extends UI {
                 //consolePanelLayout.addComponent(lbl1);
 
                 // SEMANTIC CONTROL ------------------------------------------------------------------------------------
-                Visitor visitor = new Visitor();
                 visitor.visit(grammarParseTree);
 
                 List<String> errList = visitor.getSemanticErrorsList();

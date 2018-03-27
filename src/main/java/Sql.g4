@@ -10,6 +10,9 @@ ID:                 (('a'..'z'|'A'..'Z' | '_') ((DIGIT)*))+ ;
 NEWLINE:            '\r'? '\n' ;
 WHITESPACE:         [\t\r\n\f ]+ ->channel(HIDDEN) ;
 COMMENTS:           '--' ~('\r' | '\n' )*  -> channel(HIDDEN) ;
+ErrorCharacter
+    :   .
+    ;
 
 // ------------------------------- PARSER --------------------------------------
 expression
