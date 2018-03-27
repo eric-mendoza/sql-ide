@@ -123,7 +123,9 @@ public class MyUI extends UI {
                 visitor.visit(grammarParseTree);
 
                 List<String> errList = visitor.getSemanticErrorsList();
+                List<String> successMsgs = visitor.getSuccessMessages();
 
+                // error list
                 if (!errList.isEmpty()) {
                     for (String error : errList) {
                         Label errLbl = new Label("<strong>ERROR>> </strong>" + error, ContentMode.HTML);
@@ -135,6 +137,15 @@ public class MyUI extends UI {
                     notification.setDelayMsec(4000);
                     notification.setPosition(Position.BOTTOM_RIGHT);
                     notification.show(Page.getCurrent());
+                }
+
+                // success output list
+                if (!successMsgs.isEmpty()) {
+                    for (String msg : successMsgs) {
+                        Label successLbl = new Label("<strong>SUCCESS!>> </strong>" + msg, ContentMode.HTML);
+                        successLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
+                        consolePanelLayout.addComponent(successLbl);
+                    }
                 }
 
                 Notification notification = new Notification("Compilation done!", "Execution terminated!");

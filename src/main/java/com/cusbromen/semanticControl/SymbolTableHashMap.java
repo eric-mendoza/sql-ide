@@ -1,5 +1,6 @@
 package com.cusbromen.semanticControl;
 
+import com.cusbromen.antlr.SqlParser;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -12,10 +13,111 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 public class SymbolTableHashMap implements SymbolTable{
     private JSONObject metadata;
     private String dbsJsonPath;
+
+    public int alterTable(String currentDb, SqlParser.Alter_tableContext ctx, JSONParser jsonParser) {
+        // return 0: db does not exist.
+        // return 1: success
+        // return 2: table already exists
+        // return 3: old table does not exist
+        JSONObject selectedDb;
+        String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
+        File db = new File(dbPath);
+        if (ctx.alter_rename() != null) {
+            //RENAME
+            String oldName = ctx.alter_rename().ID().get(0).getText();
+            String newName = ctx.alter_rename().ID().get(1).getText();
+
+            try {
+                if (!db.exists()) { return 0; } else {
+                    selectedDb = (JSONObject) jsonParser.parse(new FileReader(dbPath));
+                    if (!selectedDb.containsKey(oldName)) {
+                        return 3;
+                    } else if (selectedDb.containsKey(newName)) {
+                        return 2;
+                    } else {
+                        Object info = selectedDb.get(oldName);
+                        selectedDb.remove(oldName);
+                        selectedDb.put(newName, info);
+                        PrintWriter writer = new PrintWriter(db, "UTF-8");
+                        writer.write(selectedDb.toJSONString());
+                        writer.close();
+                        return 1;
+                    }
+                }
+            } catch (Exception e) { e.printStackTrace(); return 0;}
+
+        } else if (ctx.alter_action() != null) {
+            // ACTION
+            String tableName = ctx.alter_action().ID().getText();
+            // TODO ACTION
+        }
+        return 4;
+    }
+
+    /**
+     * Creates metadata for new table
+     * @param currentDb database name
+     * @param tableName
+     * @param elementList list of elements of the new table
+     * @param jsonParser
+     * @return 0, db does not exist; 1, success; 2 table already exists
+     */
+    public int createTable(String currentDb, String tableName, List<SqlParser.Table_elementContext> elementList, JSONParser jsonParser) {
+        JSONObject selectedDb;
+        String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
+        File db = new File(dbPath);
+
+        try {
+            if (!db.exists()) { return 0; } else {
+                selectedDb = (JSONObject) jsonParser.parse(new FileReader(dbPath));
+                if (selectedDb.containsKey(tableName)) {
+                    return 2;
+                } else {
+                    // traverse elements list
+                    JSONObject fields = new JSONObject();
+                    for (SqlParser.Table_elementContext element : elementList) {
+                        String id = element.ID().getText();
+                        String typeDef = element.data_type_def().data_type().getText();
+
+                        JSONObject insideInfo = new JSONObject();
+                        insideInfo.put("type", typeDef);
+                        if (element.column_constraint() != null) {
+                            insideInfo.put("column_constraint", "NOT NULL");
+                        }
+                        if (element.data_type_def().c_constraint() != null) {
+                            if (element.data_type_def().c_constraint().length_constraint() != null) {
+                                insideInfo.put("length_constraint", element.data_type_def().c_constraint().length_constraint().NUMBER().getText());
+                            }
+                            if (element.data_type_def().c_constraint().keys_constraint() != null) {
+                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("PRIMARYKEY")) {
+                                    insideInfo.put("constraint", "PRIMARY KEY");
+                                }
+                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("FOREIGNKEY")) {
+                                    insideInfo.put("constraint", "FOREIGN KEY");
+                                }
+                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("CHECK")) {
+                                    insideInfo.put("constraint", "CHECK");
+                                }
+                            }
+                        }
+
+                        fields.put(id, insideInfo); // TODO las mete en desorden, no se porque
+                    }
+
+                    selectedDb.put(tableName, fields);
+                    PrintWriter writer = new PrintWriter(db, "UTF-8");
+                    writer.write(selectedDb.toJSONString());
+                    writer.close();
+                    return 1;
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); return 0;}
+    }
 
     /**
      * This method creates a new db and returns a String with the message of the operation

@@ -42,11 +42,11 @@ public class Visitor extends SqlBaseVisitor<String> {
         int created = symbolTable.createDb(id);
         // DB already exists
         if (created == 1) {
-            semanticErrorsList.add("Error: Database '" + id + "' already exists! Line: " + ctx.start.getLine());
+            semanticErrorsList.add("Database <strong>" + id + "</strong> already exists. Line: " + ctx.start.getLine());
             return "error";
         }
 
-        successMessages.add("Message: Successful creation of database '" + id + "'.");
+        successMessages.add("Database <strong>" + id + "</strong> successfully created.");
         return "void";
     }
 
@@ -59,16 +59,16 @@ public class Visitor extends SqlBaseVisitor<String> {
         int result = symbolTable.renameDb(oldName, newName);
 
         if (result == 1){
-            semanticErrorsList.add("Error: The database '" + oldName + "' doesn't exists! Line: " + ctx.start.getLine());
+            semanticErrorsList.add("Database <strong>" + oldName + "</strong> doesn't exist. Line: " + ctx.start.getLine());
             return "error";
         }
 
         else if (result == 2){
-            semanticErrorsList.add("Error: The database '" + newName + "' already exists! Line: " + ctx.start.getLine());
+            semanticErrorsList.add("Database <strong>" + newName + "</strong>  already exists. Line: " + ctx.start.getLine());
             return "error";
         }
 
-        successMessages.add("Message: Database successfully renamed from '" + oldName + "' to '" + newName + "'.");
+        successMessages.add("Successfully renamed database <strong>" + oldName + "</strong> to <strong>" + newName + "</strong>.");
         return "void";
     }
 
@@ -89,7 +89,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         if (symbolTable.dbExists(db)){
             if (!db.equals(dbInUse)){
                 dbInUse = db;
-                successMessages.add("Message: You are using database '" + db + "' now.");
+                successMessages.add("Successfully selected database <strong>" + db + "</strong>.");
 
                 try {
                     // See if lastdb dir exists
@@ -111,24 +111,46 @@ public class Visitor extends SqlBaseVisitor<String> {
 
                 return "void";
             } else {
-                successMessages.add("Message: Database '" + db + "' was already in use.");
+                successMessages.add("Database <strong>" + db + "</strong> is already selected for use.");
                 return "void";
             }
 
         } else {
-            semanticErrorsList.add("Error: Database '" + db + "' doesn't exists! Line: " + ctx.start.getLine());
+            semanticErrorsList.add("Database <strong>" + db + "</strong> doesn't exist. Line: " + ctx.start.getLine());
             return "error";
         }
     }
 
     @Override
     public String visitCreate_table(SqlParser.Create_tableContext ctx) {
-        return super.visitCreate_table(ctx);
+        List<SqlParser.Table_elementContext> elementsList = ctx.table_element_list().table_element();
+        int createTableResult = symbolTable.createTable(dbInUse, ctx.table_name().ID(0).getText(), elementsList, jsonParser);
+
+        if (createTableResult == 0) {
+            semanticErrorsList.add("Database <strong>" + dbInUse + "</strong> doesn't exist. Line: " + ctx.start.getLine());
+        } else if (createTableResult == 1) {
+            successMessages.add("Successfully created table <strong>" + ctx.table_name().ID(0).getText() + "</strong>.");
+        } else if (createTableResult == 2) {
+            semanticErrorsList.add("Table <strong>" + ctx.table_name().ID(0).getText() + "</strong> already exists in database <strong>" + dbInUse + "</strong>.");
+        }
+        return "void";
     }
 
     @Override
     public String visitAlter_table(SqlParser.Alter_tableContext ctx) {
-        return super.visitAlter_table(ctx);
+        int alterTableResult = symbolTable.alterTable(dbInUse, ctx, jsonParser);
+
+        if (alterTableResult == 0) {
+            semanticErrorsList.add("Database <strong>" + dbInUse + "</strong> doesn't exist. Line: " + ctx.start.getLine());
+        } else if (alterTableResult == 1) {
+            successMessages.add("Successfull operation.");
+        } else if (alterTableResult == 2) {
+            semanticErrorsList.add("The table you are trying to create already exists in database <strong>" + dbInUse + "</strong>.");
+        } else if (alterTableResult == 3) {
+            semanticErrorsList.add("The table you are trying to rename does not exist in database <strong>" + dbInUse + "</strong>.");
+        }
+
+        return "void";
     }
 
     @Override
