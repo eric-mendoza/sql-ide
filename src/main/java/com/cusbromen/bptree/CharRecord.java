@@ -4,17 +4,19 @@ import java.io.RandomAccessFile;
 
 public class CharRecord implements Record<CharRecord, char[]> {
 
-    private char[] array;
+    private char[] val;
 
     @Override
     public int compareTo(CharRecord o) {
-
+//        for (int i = 0; i < ; i++) {
+//
+//        }
         return 0;
     }
 
     @Override
     public char[] getValue() {
-        return new char[0];
+        return val;
     }
 
     @Override
