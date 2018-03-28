@@ -9,6 +9,9 @@ import com.cusbromen.antlr.SqlParser;
 import com.cusbromen.semanticControl.Visitor;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
+import com.vaadin.data.TreeData;
+import com.vaadin.data.provider.TreeDataProvider;
+import com.vaadin.icons.VaadinIcons;
 import com.vaadin.server.*;
 import com.vaadin.shared.Position;
 import com.vaadin.shared.ui.ContentMode;
@@ -28,12 +31,16 @@ import org.antlr.v4.runtime.misc.Utils;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.Tree;
 import org.antlr.v4.runtime.tree.Trees;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 import java.awt.*;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 /**
  * IDE UI for the Decaf Compiler
@@ -49,9 +56,15 @@ public class MyUI extends UI {
     private static final String endOfLine = "<br/>"; // EOF for tree visualization
     private int level = 0; // tree begin index level for tree visualization
     private String prettyFileTree; // a pretty tree visualization in text
+    private JSONObject metadata;
+    private com.vaadin.ui.Tree<String> dbsTree;
+    private TreeData<String> dbsTreeData;
+    private TreeDataProvider<String> inMemoryDataProvider;
+    private Visitor visitor;
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
+        visitor = new Visitor();
         /* horizontal layout for input and console */
         HorizontalLayout hLayout = new HorizontalLayout();
         hLayout.setSpacing(false);
@@ -66,6 +79,35 @@ public class MyUI extends UI {
         consolePanelLayout.setSpacing(false);
 
         final VerticalLayout consoleLayout = new VerticalLayout();
+        consoleLayout.setHeight(100.0f, Sizeable.Unit.PERCENTAGE);
+
+        final VerticalLayout leftOptionsLayout = new VerticalLayout();
+        leftOptionsLayout.setSpacing(false);
+
+        // file tree for databases
+        dbsTree = new com.vaadin.ui.Tree<>();
+        dbsTreeData = new TreeData<>();
+        dbsTreeData.addItem(null, "DBMS Current databases");
+
+        dbsTree.setItemIconGenerator(item -> {
+            if (item.equals("DBMS Current databases")) {
+                return VaadinIcons.DATABASE;
+            }
+            return null;
+        });
+
+        inMemoryDataProvider = new TreeDataProvider<>(dbsTreeData);
+        dbsTree.setDataProvider(inMemoryDataProvider);
+        dbsTree.expand("DBMS Current databases");
+
+        // read metadata from jsons
+        readMetadataFromJSON();
+        updateDbsTree();
+
+        Label dbsTreeLbl = new Label("<strong>Current created databases</strong>", ContentMode.HTML);
+        dbsTreeLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
+
+        leftOptionsLayout.addComponents(dbsTreeLbl, dbsTree);
 
         /* console panel */
         Panel consolePanel = new Panel("Console");
@@ -81,21 +123,37 @@ public class MyUI extends UI {
         });
 
         /* Buttons for compilation, tree and to clear the console */
-        Button button = new Button("Compile code");
-        Button generateTreeBtn = new Button("Tree representation");
-        Button clrConsoleBtn = new Button("Clear console");
+        Button compileBtn = new Button();
+        compileBtn.setIcon(VaadinIcons.PLAY);
+        compileBtn.setDescription("Execute query");
+        compileBtn.setSizeFull();
 
-        button.setSizeFull();
-        generateTreeBtn.setSizeFull();
-        clrConsoleBtn.setSizeFull();
+        Button loadScriptBtn = new Button();
+        loadScriptBtn.setIcon(VaadinIcons.FOLDER_OPEN);
+        loadScriptBtn.setDescription("Load script");
+        loadScriptBtn.setSizeFull();
 
-        generateTreeBtn.setEnabled(false);
+        Button clearEditorBtn = new Button();
+        clearEditorBtn.setIcon(VaadinIcons.TRASH);
+        clearEditorBtn.setDescription("Clear editor");
+        clearEditorBtn.setSizeFull();
+
+        Button clearConsoleBtn = new Button();
+        clearConsoleBtn.setIcon(VaadinIcons.DEL);
+        clearConsoleBtn.setDescription("Clear console");
+        clearConsoleBtn.setSizeFull();
+
+        Button verboseBtn = new Button();
+        verboseBtn.setIcon(VaadinIcons.BUG);
+        verboseBtn.setDescription("Verbose script");
+        verboseBtn.setSizeFull();
 
         /* button listeners */
-        button.addClickListener(e -> {
+        compileBtn.addClickListener(e -> {
             if (editorInput != null) {
+                setFocusedComponent(consolePanel);
                 // Create visitor
-                Visitor visitor = new Visitor();
+                dbsTree.select(visitor.getDbInUse());
 
                 /* clear the console */
                 consolePanelLayout.removeAllComponents();
@@ -125,6 +183,8 @@ public class MyUI extends UI {
                 List<String> errList = visitor.getSemanticErrorsList();
                 List<String> successMsgs = visitor.getSuccessMessages();
 
+                consolePanelLayout.removeAllComponents();
+
                 // error list
                 if (!errList.isEmpty()) {
                     for (String error : errList) {
@@ -148,12 +208,16 @@ public class MyUI extends UI {
                     }
                 }
 
+                // refresh dbs filesystem
+                readMetadataFromJSON();
+                updateDbsTree();
+
                 Notification notification = new Notification("Compilation done!", "Execution terminated!");
                 notification.setDelayMsec(2000);
                 notification.setPosition(Position.TOP_CENTER);
                 notification.show(Page.getCurrent());
 
-                generateTreeBtn.setEnabled(true);
+                loadScriptBtn.setEnabled(true);
             } else {
                 Notification notification = new Notification("Empty code", "The editor is empty",
                         Notification.Type.WARNING_MESSAGE, true);
@@ -165,91 +229,36 @@ public class MyUI extends UI {
         });
 
         /* visual tree representation */
-        generateTreeBtn.addClickListener(event -> {
-            TreeViewer viewer = new TreeViewer(Arrays.asList(grammarParser.getRuleNames()), grammarParseTree);
-            viewer.setBorderColor(Color.WHITE);
-            viewer.setBoxColor(Color.WHITE);
-            try {
-                viewer.save("tree.jpg");
-                //generate indented tree
-                List<String> ruleNamesList = Arrays.asList(grammarParser.getRuleNames());
-                //System.out.println(ruleNamesList.toString());
-                //System.out.println(prettyTree(parseTree, ruleNamesList));
-                prettyFileTree = prettyTree(grammarParseTree, ruleNamesList);
-
-                final Window window = new Window("Parse Tree");
-                //window.setWidth(90.0f, Unit.PERCENTAGE);
-                window.setHeight(90.0f, Unit.PERCENTAGE);
-                window.center();
-                window.setResizable(false);
-
-                /* save the tree image */
-                //String basepath = VaadinService.getCurrent().getBaseDirectory().getAbsolutePath();
-                FileResource resource = new FileResource(new File("tree.jpg"));
-                Image image = new Image("Tree saved to /tree.jpg", resource);
-
-                HorizontalLayout treeLayout = new HorizontalLayout();
-                treeLayout.setMargin(true);
-                treeLayout.setSpacing(true);
-                treeLayout.setHeight(100.0f, Unit.PERCENTAGE);
-                treeLayout.addComponent(image);
-                treeLayout.setComponentAlignment(image, Alignment.MIDDLE_CENTER);
-
-                //add Panel to layout
-                Panel fileTreePanel = new Panel();
-                fileTreePanel.setHeight(500.0f, Unit.PIXELS);
-
-                Label fileTreeLbl = new Label(prettyFileTree, ContentMode.HTML);
-                fileTreeLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
-
-                fileTreePanel.setContent(fileTreeLbl);
-                treeLayout.addComponent(fileTreePanel);
-                treeLayout.setComponentAlignment(fileTreePanel, Alignment.MIDDLE_LEFT);
-
-                window.setContent(treeLayout);
-
-                hLayout.getUI().getUI().addWindow(window);
-
-                Notification notification = new Notification("Visual representation done!", "Click to dismiss");
-                notification.setDelayMsec(500);
-                notification.setPosition(Position.TOP_CENTER);
-                notification.show(Page.getCurrent());
-
-                generateTreeBtn.setEnabled(false);
-            } catch (IOException e1) {
-                e1.printStackTrace();
-                Notification notification = new Notification("Failed tree visualization", e1.getMessage(),
-                        Notification.Type.ERROR_MESSAGE, true);
-                notification.setDelayMsec(4000);
-                notification.setPosition(Position.BOTTOM_RIGHT);
-                notification.show(Page.getCurrent());
-            } catch (PrintException e1) {
-                e1.printStackTrace();
-                Notification notification = new Notification("Failed tree visualization", e1.getMessage(),
-                        Notification.Type.ERROR_MESSAGE, true);
-                notification.setDelayMsec(4000);
-                notification.setPosition(Position.BOTTOM_RIGHT);
-                notification.show(Page.getCurrent());
-            }
+        loadScriptBtn.addClickListener(event -> {
+            // TODO
         });
 
-        clrConsoleBtn.addClickListener(event -> {
+        clearEditorBtn.addClickListener(event -> {
+            editor.clear();
+        });
+
+        clearConsoleBtn.addClickListener(event -> {
             consolePanelLayout.removeAllComponents();
+        });
+
+        verboseBtn.addClickListener(event -> {
+            // TODO
         });
 
         // LAYOUT
         VerticalLayout pagelayout = new VerticalLayout();
-        pagelayout.addComponents(hLayout);
-        pagelayout.setSizeFull();
+        pagelayout.addComponents(hLayout, consoleLayout);
+        pagelayout.setSpacing(false);
+        pagelayout.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
 
         HorizontalLayout editorButtonsLayout = new HorizontalLayout();
         editorButtonsLayout.setSizeFull();
-        editorButtonsLayout.addComponents(button, generateTreeBtn, clrConsoleBtn);
+        editorButtonsLayout.addComponents(compileBtn, loadScriptBtn, clearEditorBtn, clearConsoleBtn, verboseBtn);
 
         consolePanel.setContent(consolePanelLayout);
         consoleLayout.addComponent(consolePanel);
-        layout.addComponents(editorLbl, editor, editorButtonsLayout);
-        hLayout.addComponents(layout, consoleLayout);
+        layout.addComponents(editorLbl, editorButtonsLayout, editor);
+        hLayout.addComponents(leftOptionsLayout, layout);
         
         setContent(pagelayout);
     }
@@ -308,5 +317,58 @@ public class MyUI extends UI {
             }
         }
         return sb.toString();
+    }
+
+    private void updateDbsTree() {
+        dbsTreeData.clear();
+        inMemoryDataProvider.refreshAll();
+
+        dbsTreeData.addItem(null, "DBMS Current databases");
+        dbsTree.expand("DBMS Current databases");
+
+        Set<?> keys = metadata.keySet();
+
+        for (Object key : keys) {
+            dbsTreeData.addItem("DBMS Current databases", "DB: " + key.toString());
+            JSONObject dbData = new JSONObject();
+            try {
+                File dbs = new File("metadata/" + key.toString() + "/" + key.toString() + ".json");
+                if (dbs.exists()) {
+                    JSONParser jsonParser = new JSONParser();
+                    dbData = (JSONObject) jsonParser.parse(new FileReader("metadata/" + key.toString() + "/" + key.toString() + ".json"));
+
+                    Set<?> keysInside = dbData.keySet();
+
+                    for (Object keyInside : keysInside) {
+                        dbsTreeData.addItem("DB: " + key.toString(), keyInside.toString());
+                    }
+                }
+            } catch (Exception e) { }
+
+            dbsTree.addItemClickListener(event -> {
+                System.out.println(event.getItem().toString());
+                if (event.getItem().toString().contains("DB: ")) {
+                    String dbName = event.getItem().toString().replace("DB: ", "");
+                    visitor.setDbInUse(dbName);
+
+                    Notification notification = new Notification("Selected database " + dbName, "Click to dismiss");
+                    notification.setDelayMsec(500);
+                    notification.setPosition(Position.TOP_CENTER);
+                    notification.show(Page.getCurrent());
+                }
+            });
+        }
+
+        inMemoryDataProvider.refreshAll();
+    }
+
+    private void readMetadataFromJSON() {
+        try {
+            File dbs = new File("metadata/dbs.json");
+            if (dbs.exists()) {
+                JSONParser jsonParser = new JSONParser();
+                metadata = (JSONObject) jsonParser.parse(new FileReader("metadata/dbs.json"));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 }

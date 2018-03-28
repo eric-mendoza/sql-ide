@@ -345,6 +345,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
     }
 
+    public void setDbInUse(String db) {
+        dbInUse = db;
+    }
+
     public boolean hasSyntaxError() {
         return syntaxError;
     }
