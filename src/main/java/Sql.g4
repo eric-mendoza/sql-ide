@@ -53,7 +53,7 @@ use_database
     ;
 
 create_table
-    :   'CREATE' 'TABLE' table_name table_element_list ';'
+    :   'CREATE' 'TABLE' ID table_element_list ';'
     ;
 
 alter_table
@@ -108,14 +108,10 @@ alter_action
     ;
 
 action
-    :   'ADD' 'COLUMN' ID ('CONSTRAINT' c_constraint)*           #addColumn
+    :   'ADD' 'COLUMN' ID ('CONSTRAINT' c_constraint)*              #addColumn
     |   'ADD' 'CONSTRAINT' c_constraint                             #addConstraint
     |   'DROP' 'COLUMN' ID                                          #dropColumn
     |   'DROP' 'CONSTRAINT' ID                                      #dropConstraint
-    ;
-
-table_name
-    :   (ID '.')? ID
     ;
 
 table_element_list
@@ -147,9 +143,13 @@ c_constraint
     ;
 
 keys_constraint
-    :   'PK_' ID 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')*                                               #primaryKey
-    |   'FK_' ID 'FOREIGN' 'KEY' ('(' ID (',' ID)* ')')* 'REFERENCES' ID ('(' ID (',' ID)* ')')*       #foreignKey
-    |   'CH_' ID 'CHECK' '(' check_exp ')'                                                             #check
+    :   ID 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')*                                               #primaryKey
+    |   ID 'FOREIGN' 'KEY' ('(' ID (',' ID)* ')')* foreignKeyReferences                          #foreignKey
+    |   ID 'CHECK' '(' check_exp ')'                                                             #check
+    ;
+
+foreignKeyReferences
+    :   'REFERENCES' ID ('(' ID (',' ID)* ')')*
     ;
 
 check_exp

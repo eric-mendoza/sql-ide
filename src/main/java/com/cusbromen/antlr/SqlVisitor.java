@@ -153,12 +153,6 @@ public interface SqlVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitDropConstraint(SqlParser.DropConstraintContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link SqlParser#table_name}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitTable_name(SqlParser.Table_nameContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link SqlParser#table_element_list}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -215,6 +209,12 @@ public interface SqlVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitCheck(SqlParser.CheckContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link SqlParser#foreignKeyReferences}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitForeignKeyReferences(SqlParser.ForeignKeyReferencesContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link SqlParser#check_exp}.
 	 * @param ctx the parse tree

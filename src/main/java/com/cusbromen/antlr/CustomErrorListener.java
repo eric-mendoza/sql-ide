@@ -31,7 +31,7 @@ public class CustomErrorListener extends BaseErrorListener {
         }
 
         // TODO Descomentar esto para ser usado con VAADIN
-
+        /*
         Label lbl = new Label("<strong>ERROR >> </strong> Line <strong>"+line+":"+charPos+ "</strong> "+msg, ContentMode.HTML);
         lbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
         layout.addComponent(lbl);
@@ -40,7 +40,7 @@ public class CustomErrorListener extends BaseErrorListener {
                 Notification.Type.ERROR_MESSAGE, true);
         notification.setDelayMsec(4000);
         notification.setPosition(Position.BOTTOM_RIGHT);
-        notification.show(Page.getCurrent());
+        notification.show(Page.getCurrent());*/
 
         System.err.println(sourceName+"line "+line+":"+charPos+ " "+msg);
     }

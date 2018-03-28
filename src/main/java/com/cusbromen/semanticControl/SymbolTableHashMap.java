@@ -1,6 +1,7 @@
 package com.cusbromen.semanticControl;
 
 import com.cusbromen.antlr.SqlParser;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -13,8 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -22,61 +21,90 @@ import java.util.Set;
 @SuppressWarnings("unchecked") // JSON's fault
 public class SymbolTableHashMap implements SymbolTable{
     private JSONObject metadata, dbInUseMetadata;
-    private String dbsJsonPath;
+    private String dbsJsonPath, dbInUseId;
+    private List<String> verboseParser;
+
+    public SymbolTableHashMap(List<String> verboseParser) {
+        this.verboseParser = verboseParser;
+    }
 
     public String showDatabases() {
+        verboseParser.add(">> Will try to show databases!");
+
         if (!metadata.isEmpty()) {
             Set<?> keys = metadata.keySet();
             String dbList = "";
+
+            verboseParser.add(">> Finding keys for databases.");
 
             for (Object key : keys) {
                 dbList = dbList + "*\t" + key.toString() + "<br>";
             }
 
+            verboseParser.add(">> Found all keys for databases! " + dbList);
+
             return dbList;
         } else {
+            verboseParser.add(">> The metadata.json file is empty!");
             return "0";
         }
     }
 
+    // TODO Verify that currentDB isnt null before coming here (Also use the variable with the name of the db in use)
     public String showTables(String currentDb) {
+        verboseParser.add("Will try to show tables!");
+
         if (currentDb != null){
 
             try {
                 Set<?> keys = dbInUseMetadata.keySet();
                 String tableList = "";
 
+                verboseParser.add(">> Finding keys for tables in database " + currentDb + ".");
+
                 for (Object key : keys) {
                     tableList = tableList + "*\t" + key.toString() + "<br>";
                 }
 
+                verboseParser.add(">> Found keys for tables in " + currentDb + "! " + tableList + ".");
+
                 return tableList;
 
             } catch (Exception e) {
+                verboseParser.add(">> Failed in finding keys for tables in database " + currentDb);
                 e.printStackTrace(); return "0";
             }
         } else {
+            verboseParser.add(">> ");
             return "0";
         }
     }
 
     public int renameTable(String currentDb, String oldName, String newName){
+        verboseParser.add(">> Will try to rename metadata for table " + oldName);
+
         if (currentDb != null){
             String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
             File db = new File(dbPath);
+            verboseParser.add(">> Locating file " + dbPath);
 
             try {
                 if (!dbInUseMetadata.containsKey(oldName)) {
+                    verboseParser.add(">> Table is not in database " + oldName + "!");
                     return 3;
                 } else if (dbInUseMetadata.containsKey(newName)) {
+                    verboseParser.add(">> Database already has " + newName + "!");
                     return 2;
                 } else {
                     Object info = dbInUseMetadata.get(oldName);
+                    verboseParser.add(">> Using info " + info.toString());
                     dbInUseMetadata.remove(oldName);
                     dbInUseMetadata.put(newName, info);
+                    verboseParser.add(">> Changed info to: " + dbInUseMetadata.toString());
                     PrintWriter writer = new PrintWriter(db, "UTF-8");
                     writer.write(dbInUseMetadata.toJSONString());
                     writer.close();
+                    verboseParser.add(">> Wrote to file!");
                     return 1;
                 }
             } catch (Exception e) {
@@ -90,6 +118,7 @@ public class SymbolTableHashMap implements SymbolTable{
     }
 
     public int alterTable(String currentDb) {
+        verboseParser.add(">> Will try to alter metadata for table");
         // return 0: You are not using a db.
         // return 1: success
         // return 2: table already exists
@@ -97,6 +126,8 @@ public class SymbolTableHashMap implements SymbolTable{
         if (currentDb != null){
             String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
             File db = new File(dbPath);
+
+            verboseParser.add(">> Using file: " + dbPath);
 
             // ACTION
             // TODO ACTION
@@ -108,78 +139,43 @@ public class SymbolTableHashMap implements SymbolTable{
         }
     }
 
-    /**
-     * Creates metadata for new table
-     * @param currentDb database name
-     * @param tableName
-     * @param elementList list of elements of the new table
-     * @param jsonParser
-     * @return 0, db does not exist; 1, success; 2 table already exists; 3: you are not using any db
-     */
-    public int createTable(String currentDb, String tableName, List<SqlParser.Table_elementContext> elementList, JSONParser jsonParser) {
-        if (currentDb != null){
-            String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
-            File db = new File(dbPath);
+    public int createTable(String tableName, JSONObject tableProps) {
+        verboseParser.add(">> Will try to create metadata for table " + tableName);
+        String dbPath = "metadata/" + dbInUseId + "/" + dbInUseId + ".json";
+        File db = new File(dbPath);
+        verboseParser.add(">> Using file: " + dbPath);
 
-            try {
-                if (dbInUseMetadata.containsKey(tableName)) {
-                    // Table already exists
-                    return 2;
+        try {
+            if (dbInUseMetadata.containsKey(tableName)) {
+                // Table already exists
+                verboseParser.add(">> Table already exists!");
+                return 2;
 
-                } else {
-                    // traverse elements list
-                    JSONObject fields = new JSONObject();
-                    for (SqlParser.Table_elementContext element : elementList) {
-                        String id = element.ID().getText();
-                        String typeDef = element.data_type_def().data_type().getText();
+            } else {
 
-                        JSONObject insideInfo = new JSONObject();
-                        insideInfo.put("type", typeDef);
-                        if (element.column_constraint() != null) {
-                            insideInfo.put("column_constraint", "NOT NULL");
-                        }
-                        if (element.data_type_def().c_constraint() != null) {
-                            if (element.data_type_def().c_constraint().length_constraint() != null) {
-                                insideInfo.put("length_constraint", element.data_type_def().c_constraint().length_constraint().NUMBER().getText());
-                            }
-                            if (element.data_type_def().c_constraint().keys_constraint() != null) {
-                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("PRIMARYKEY")) {
-                                    insideInfo.put("constraint", "PRIMARY KEY");
-                                }
-                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("FOREIGNKEY")) {
-                                    insideInfo.put("constraint", "FOREIGN KEY");
-                                }
-                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("CHECK")) {
-                                    insideInfo.put("constraint", "CHECK");
-                                }
-                            }
-                        }
+                verboseParser.add(">> Writing changes to file " + dbPath);
+                dbInUseMetadata.put(tableName, tableProps);
+                PrintWriter writer = new PrintWriter(db, "UTF-8");
+                writer.write(dbInUseMetadata.toJSONString());
+                writer.close();
 
-                        fields.put(id, insideInfo); // TODO las mete en desorden, no se porque
-                    }
+                // Increase number of tables in metadata
+                verboseParser.add(">> Writing changes to file " + dbsJsonPath);
+                PrintWriter writer2 = new PrintWriter(dbsJsonPath, "UTF-8");
+                JSONObject table = (JSONObject) metadata.get(dbInUseId);
+                Long noTables = (Long) table.get("noTables");
+                noTables++;
+                table.put("noTables", noTables);
 
-                    dbInUseMetadata.put(tableName, fields);
-                    PrintWriter writer = new PrintWriter(db, "UTF-8");
-                    writer.write(dbInUseMetadata.toJSONString());
-                    writer.close();
-
-                    // Increase number of tables in metadata
-                    PrintWriter writer2 = new PrintWriter(dbsJsonPath, "UTF-8");
-                    JSONObject table = (JSONObject) metadata.get(currentDb);
-                    Long noTables = (Long) table.get("noTables");
-                    noTables++;
-                    table.put("noTables", noTables);
-
-                    writer2.write(metadata.toJSONString());
-                    writer2.close();
-                    return 1;
-                }
-            } catch (Exception e) { e.printStackTrace(); return 0;}
-        } else {
-            // You haven't selected a db to use
-            return 3;
+                writer2.write(metadata.toJSONString());
+                writer2.close();
+                return 1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); return 0;
         }
     }
+
 
     /**
      * This method creates a new db and returns a String with the message of the operation
@@ -188,10 +184,12 @@ public class SymbolTableHashMap implements SymbolTable{
      */
     @Override
     public int createDb(String id) {
+        verboseParser.add(">> Will try to create metadata for database " + id);
         // Try to open the master file (dbs.json) on metadata directory
         try {
             // Verify if db already exists
             if (metadata.get(id) == null){
+                verboseParser.add(">> metadata.json didn't exist! Creating file...");
                 JSONObject newDb = new JSONObject();
                 newDb.put("noTables", 0);
                 metadata.put(id, newDb);
@@ -200,17 +198,22 @@ public class SymbolTableHashMap implements SymbolTable{
                 PrintWriter writer = new PrintWriter(new File(dbsJsonPath), "UTF-8");
                 writer.write(metadata.toJSONString());
                 writer.close();
+
+                verboseParser.add(">> metadata.json file created!");
             }
 
             // DB already exists
             else {
+                verboseParser.add(">> metadata.json file already exists!");
                 return 1;
             }
 
             // Create a directory for the new db
+            verboseParser.add(">> Creating new directory for database");
             File newDb = new File("metadata/" + id + "/" + id + ".json");
             newDb.getParentFile().mkdir();
             newDb.createNewFile();
+            verboseParser.add(">> Directory for " + newDb.getPath() + " created!");
 
             PrintWriter writer = new PrintWriter(newDb, "UTF-8");
             writer.write("{}");
@@ -232,6 +235,7 @@ public class SymbolTableHashMap implements SymbolTable{
      */
     @Override
     public int renameDb(String oldName, String newName) {
+        verboseParser.add(">> Will try to rename database " + oldName + " in metadata!");
         // Verify if the target DB exists
         if (metadata.get(oldName) != null){
             // Verify if the newName is in use
@@ -245,18 +249,23 @@ public class SymbolTableHashMap implements SymbolTable{
 
             // Overwrite existing json
             try {
+                verboseParser.add(">> Using file " + dbsJsonPath);
                 File dbsJsonFile = new File(dbsJsonPath);
                 PrintWriter writer = new PrintWriter(dbsJsonFile, "UTF-8");
                 writer.write(metadata.toJSONString());
                 writer.close();
+                verboseParser.add(">> Changed metadata and wrote to file " + dbsJsonPath + "!");
 
                 // Create new destiny path
+                verboseParser.add(">> Creating new destiny path!");
                 new File("metadata/" + newName).mkdir();
                 Path fileToMovePath = Paths.get("metadata/" + oldName + "/" + oldName + ".json");
                 Path targetPath = Paths.get("metadata/" + newName + "/" + newName + ".json");
+                verboseParser.add(">> Changes made into path " + targetPath + "!");
 
                 Files.move(fileToMovePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
                 Files.delete(Paths.get("metadata/" + oldName));  // Delete old path
+                verboseParser.add(">> Deleted previous directory!");
 
             } catch (IOException e){
                 e.printStackTrace();
@@ -274,10 +283,12 @@ public class SymbolTableHashMap implements SymbolTable{
      * Reads the metadata file and parses it
      */
     public void readMetadata(String dbsJsonPath, JSONParser jsonParser, String lastUsedDb) {
+        verboseParser.add(">> Will try to read metadata!");
         try {
             this.dbsJsonPath = dbsJsonPath;
 
             // See if metadata dir exists
+            verboseParser.add("Using file: " + dbsJsonPath);
             File dbs = new File(dbsJsonPath);
 
             // If it doesn't exists, create it
@@ -285,6 +296,7 @@ public class SymbolTableHashMap implements SymbolTable{
                 dbs.getParentFile().mkdir();
                 dbs.createNewFile();
                 PrintWriter writer = new PrintWriter(dbs, "UTF-8");
+                verboseParser.add(">> File didn't exist! Now created!");
 
                 // Create bject with all dbs
                 metadata = new JSONObject();
@@ -293,15 +305,21 @@ public class SymbolTableHashMap implements SymbolTable{
                 writer.write(metadata.toJSONString());
 
                 writer.close();
+                verboseParser.add(">> Changes written to " + dbsJsonPath);
             }
 
             // Load it to memory
             else {
+                verboseParser.add(">> Changes written to " + dbsJsonPath);
                 metadata = (JSONObject) jsonParser.parse(new FileReader(dbsJsonPath));
             }
 
             // Load last used db to memory
-            if (lastUsedDb != null) loadDbMetadata(lastUsedDb, jsonParser);
+            if (lastUsedDb != null) {
+                loadDbMetadata(lastUsedDb, jsonParser);
+                dbInUseId = lastUsedDb;
+                verboseParser.add(">> Loading las used database to memory: " + dbInUseId);
+            }
 
         } catch (IOException | ParseException e) {
             e.printStackTrace();
@@ -314,11 +332,15 @@ public class SymbolTableHashMap implements SymbolTable{
      * @return True, if correctly loaded, False, otherwise
      */
     public boolean loadDbMetadata(String dbName, JSONParser jsonParser){
+        verboseParser.add(">> Will try to load metadata from databases");
         String dbPath = "metadata/" + dbName + "/" + dbName + ".json";
         File db = new File(dbPath);
+        verboseParser.add("Using file: " + dbPath);
+
         if (db.exists()){
             try {
                 dbInUseMetadata = (JSONObject) jsonParser.parse(new FileReader(dbPath));
+                verboseParser.add(">> Data loaded!");
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
             }
@@ -337,4 +359,26 @@ public class SymbolTableHashMap implements SymbolTable{
         if (db == null) return false;
         return true;
     }
+
+    /**
+     * Verifies if a table exists in the db in use
+     * @param idTable searched table
+     * @return True, if it exists; False, otherwise
+     */
+    public boolean tableExists(String idTable){
+        return dbInUseMetadata.get(idTable) != null;
+    }
+
+    public JSONObject getTable(String idTable){
+        return (JSONObject) dbInUseMetadata.get(idTable);
+    }
+
+    public JSONArray getPrimaryKey(String referencedTableId) {
+        JSONObject table = (JSONObject) dbInUseMetadata.get(referencedTableId);
+        JSONObject tableConstraints = (JSONObject) table.get("constraints");
+        return (JSONArray) tableConstraints.get("PK_" + referencedTableId);
+
+    }
+
+    public List<String> getVerboseParser() { return verboseParser; }
 }
