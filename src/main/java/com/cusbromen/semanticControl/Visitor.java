@@ -12,7 +12,7 @@ import java.util.List;
 
 @SuppressWarnings("unchecked") // JSON's fault
 public class Visitor extends SqlBaseVisitor<String> {
-    private List<String> semanticErrorsList, successMessages; // list for semantic errors found
+    private List<String> semanticErrorsList, successMessages, verboseParser; // list for semantic errors found
     private JSONParser jsonParser;
     private JSONObject newTable, newColumns, newColumn, newConstraints;  // This is going to be used to construct a table step by step
     private String dbsJsonPath, dbInUse, newTableName, newColumnName, newTypeColumn;
@@ -23,9 +23,10 @@ public class Visitor extends SqlBaseVisitor<String> {
     public Visitor() {
         this.semanticErrorsList = new ArrayList<>();
         successMessages = new ArrayList<>();
+        verboseParser = new ArrayList<>();
         jsonParser = new JSONParser();  // Used to read an existing JSON file
         dbsJsonPath = "metadata/dbs.json";
-        symbolTable = new SymbolTableHashMap();
+        symbolTable = new SymbolTableHashMap(verboseParser);
         dbInUse = loadLastUsedDb();
         symbolTable.readMetadata(dbsJsonPath, jsonParser, dbInUse);  // Load the metadata of dbs before working
         syntaxError = false;
@@ -669,4 +670,10 @@ public class Visitor extends SqlBaseVisitor<String> {
     public void setSyntaxError(boolean syntaxError) {
         this.syntaxError = syntaxError;
     }
+
+    public void addToVerboseParser() {
+        verboseParser.addAll(symbolTable.getVerboseParser());
+    }
+
+    public List<String> getVerboseParser() { return verboseParser;}
 }

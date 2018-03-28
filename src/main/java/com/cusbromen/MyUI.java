@@ -152,6 +152,7 @@ public class MyUI extends UI {
 
         /* button listeners */
         compileBtn.addClickListener(e -> {
+            visitor = new Visitor();
             if (editorInput != null) {
                 setFocusedComponent(consolePanel);
                 // Create visitor
@@ -187,11 +188,21 @@ public class MyUI extends UI {
 
                 consolePanelLayout.removeAllComponents();
 
+                visitor.addToVerboseParser();
+
+                if (!visitor.getVerboseParser().isEmpty() && verboseMode) {
+                    for (String verbose : visitor.getVerboseParser()) {
+                        Label errLbl = new Label(verbose, ContentMode.HTML);
+                        errLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
+                        consolePanelLayout.addComponent(errLbl);
+                    }
+                }
+
                 // error list
                 if (!errList.isEmpty()) {
                     for (String error : errList) {
                         Label errLbl = new Label("<strong>ERROR>> </strong>" + error, ContentMode.HTML);
-                        lbl1.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
+                        errLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
                         consolePanelLayout.addComponent(errLbl);
                     }
                     Notification notification = new Notification("Compiled with errors", "See console for details",
