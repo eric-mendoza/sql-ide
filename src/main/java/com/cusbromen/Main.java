@@ -12,7 +12,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        CharStream charStream = CharStreams.fromString("SHOW TABLES;");
+        CharStream charStream = CharStreams.fromString("CREATE TABLE pruebaConexion223 (phone INT, name CHAR, id INT CONSTRAINT PK_pruebaConexion223 PRIMARY KEY NOT NULL, fecha DATE CONSTRAINT FK_pruebaConexion223 FOREIGN KEY REFERENCES prueba2);");
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 

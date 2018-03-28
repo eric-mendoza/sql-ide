@@ -1,6 +1,7 @@
 package com.cusbromen.semanticControl;
 
 import com.cusbromen.antlr.SqlParser;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -13,8 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -22,7 +21,7 @@ import java.util.Set;
 @SuppressWarnings("unchecked") // JSON's fault
 public class SymbolTableHashMap implements SymbolTable{
     private JSONObject metadata, dbInUseMetadata;
-    private String dbsJsonPath;
+    private String dbsJsonPath, dbInUseId;
 
     public String showDatabases() {
         if (!metadata.isEmpty()) {
@@ -39,6 +38,7 @@ public class SymbolTableHashMap implements SymbolTable{
         }
     }
 
+    // TODO Verify that currentDB isnt null before coming here (Also use the variable with the name of the db in use)
     public String showTables(String currentDb) {
         if (currentDb != null){
 
@@ -108,78 +108,38 @@ public class SymbolTableHashMap implements SymbolTable{
         }
     }
 
-    /**
-     * Creates metadata for new table
-     * @param currentDb database name
-     * @param tableName
-     * @param elementList list of elements of the new table
-     * @param jsonParser
-     * @return 0, db does not exist; 1, success; 2 table already exists; 3: you are not using any db
-     */
-    public int createTable(String currentDb, String tableName, List<SqlParser.Table_elementContext> elementList, JSONParser jsonParser) {
-        if (currentDb != null){
-            String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
-            File db = new File(dbPath);
+    public int createTable(String tableName, JSONObject tableProps) {
+        String dbPath = "metadata/" + dbInUseId + "/" + dbInUseId + ".json";
+        File db = new File(dbPath);
 
-            try {
-                if (dbInUseMetadata.containsKey(tableName)) {
-                    // Table already exists
-                    return 2;
+        try {
+            if (dbInUseMetadata.containsKey(tableName)) {
+                // Table already exists
+                return 2;
 
-                } else {
-                    // traverse elements list
-                    JSONObject fields = new JSONObject();
-                    for (SqlParser.Table_elementContext element : elementList) {
-                        String id = element.ID().getText();
-                        String typeDef = element.data_type_def().data_type().getText();
+            } else {
 
-                        JSONObject insideInfo = new JSONObject();
-                        insideInfo.put("type", typeDef);
-                        if (element.column_constraint() != null) {
-                            insideInfo.put("column_constraint", "NOT NULL");
-                        }
-                        if (element.data_type_def().c_constraint() != null) {
-                            if (element.data_type_def().c_constraint().length_constraint() != null) {
-                                insideInfo.put("length_constraint", element.data_type_def().c_constraint().length_constraint().NUMBER().getText());
-                            }
-                            if (element.data_type_def().c_constraint().keys_constraint() != null) {
-                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("PRIMARYKEY")) {
-                                    insideInfo.put("constraint", "PRIMARY KEY");
-                                }
-                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("FOREIGNKEY")) {
-                                    insideInfo.put("constraint", "FOREIGN KEY");
-                                }
-                                if (element.data_type_def().c_constraint().keys_constraint().getText().contains("CHECK")) {
-                                    insideInfo.put("constraint", "CHECK");
-                                }
-                            }
-                        }
+                dbInUseMetadata.put(tableName, tableProps);
+                PrintWriter writer = new PrintWriter(db, "UTF-8");
+                writer.write(dbInUseMetadata.toJSONString());
+                writer.close();
 
-                        fields.put(id, insideInfo); // TODO las mete en desorden, no se porque
-                    }
+                // Increase number of tables in metadata
+                PrintWriter writer2 = new PrintWriter(dbsJsonPath, "UTF-8");
+                JSONObject table = (JSONObject) metadata.get(dbInUseId);
+                Long noTables = (Long) table.get("noTables");
+                noTables++;
+                table.put("noTables", noTables);
 
-                    dbInUseMetadata.put(tableName, fields);
-                    PrintWriter writer = new PrintWriter(db, "UTF-8");
-                    writer.write(dbInUseMetadata.toJSONString());
-                    writer.close();
-
-                    // Increase number of tables in metadata
-                    PrintWriter writer2 = new PrintWriter(dbsJsonPath, "UTF-8");
-                    JSONObject table = (JSONObject) metadata.get(currentDb);
-                    Long noTables = (Long) table.get("noTables");
-                    noTables++;
-                    table.put("noTables", noTables);
-
-                    writer2.write(metadata.toJSONString());
-                    writer2.close();
-                    return 1;
-                }
-            } catch (Exception e) { e.printStackTrace(); return 0;}
-        } else {
-            // You haven't selected a db to use
-            return 3;
+                writer2.write(metadata.toJSONString());
+                writer2.close();
+                return 1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); return 0;
         }
     }
+
 
     /**
      * This method creates a new db and returns a String with the message of the operation
@@ -301,7 +261,10 @@ public class SymbolTableHashMap implements SymbolTable{
             }
 
             // Load last used db to memory
-            if (lastUsedDb != null) loadDbMetadata(lastUsedDb, jsonParser);
+            if (lastUsedDb != null) {
+                loadDbMetadata(lastUsedDb, jsonParser);
+                dbInUseId = lastUsedDb;
+            }
 
         } catch (IOException | ParseException e) {
             e.printStackTrace();
@@ -336,5 +299,25 @@ public class SymbolTableHashMap implements SymbolTable{
         Object db = metadata.get(id);
         if (db == null) return false;
         return true;
+    }
+
+    /**
+     * Verifies if a table exists in the db in use
+     * @param idTable searched table
+     * @return True, if it exists; False, otherwise
+     */
+    public boolean tableExists(String idTable){
+        return dbInUseMetadata.get(idTable) != null;
+    }
+
+    public JSONObject getTable(String idTable){
+        return (JSONObject) dbInUseMetadata.get(idTable);
+    }
+
+    public JSONArray getPrimaryKey(String referencedTableId) {
+        JSONObject table = (JSONObject) dbInUseMetadata.get(referencedTableId);
+        JSONObject tableConstraints = (JSONObject) table.get("constraints");
+        return (JSONArray) tableConstraints.get("PK_" + referencedTableId);
+
     }
 }
