@@ -61,10 +61,17 @@ public class MyUI extends UI {
     private TreeData<String> dbsTreeData;
     private TreeDataProvider<String> inMemoryDataProvider;
     private Visitor visitor;
+    private VerticalLayout consolePanelLayout;
+    private boolean verboseMode;
+
+    // Grid to show data from queries
+    private Grid<String> showDataGrid;
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
         visitor = new Visitor();
+        showDataGrid = new Grid<>();
+        verboseMode = false;
         /* horizontal layout for input and console */
         HorizontalLayout hLayout = new HorizontalLayout();
         hLayout.setSpacing(false);
@@ -75,7 +82,7 @@ public class MyUI extends UI {
 
         /* layout for the input area */
         final VerticalLayout layout = new VerticalLayout();
-        final VerticalLayout consolePanelLayout = new VerticalLayout();
+        consolePanelLayout = new VerticalLayout();
         consolePanelLayout.setSpacing(false);
 
         final VerticalLayout consoleLayout = new VerticalLayout();
@@ -127,11 +134,6 @@ public class MyUI extends UI {
         compileBtn.setIcon(VaadinIcons.PLAY);
         compileBtn.setDescription("Execute query");
         compileBtn.setSizeFull();
-
-        Button loadScriptBtn = new Button();
-        loadScriptBtn.setIcon(VaadinIcons.FOLDER_OPEN);
-        loadScriptBtn.setDescription("Load script");
-        loadScriptBtn.setSizeFull();
 
         Button clearEditorBtn = new Button();
         clearEditorBtn.setIcon(VaadinIcons.TRASH);
@@ -217,7 +219,6 @@ public class MyUI extends UI {
                 notification.setPosition(Position.TOP_CENTER);
                 notification.show(Page.getCurrent());
 
-                loadScriptBtn.setEnabled(true);
             } else {
                 Notification notification = new Notification("Empty code", "The editor is empty",
                         Notification.Type.WARNING_MESSAGE, true);
@@ -228,21 +229,43 @@ public class MyUI extends UI {
 
         });
 
-        /* visual tree representation */
-        loadScriptBtn.addClickListener(event -> {
-            // TODO
-        });
-
         clearEditorBtn.addClickListener(event -> {
             editor.clear();
+            consolePanelLayout.removeAllComponents();
+            Notification notification = new Notification("Cleared the editor", "Success!",
+                    Notification.Type.ASSISTIVE_NOTIFICATION, true);
+            notification.setDelayMsec(1000);
+            notification.setPosition(Position.TOP_CENTER);
+            notification.show(Page.getCurrent());
         });
 
         clearConsoleBtn.addClickListener(event -> {
             consolePanelLayout.removeAllComponents();
+            Notification notification = new Notification("Cleared the console", "Success!",
+                    Notification.Type.ASSISTIVE_NOTIFICATION, true);
+            notification.setDelayMsec(1000);
+            notification.setPosition(Position.TOP_CENTER);
+            notification.show(Page.getCurrent());
         });
 
         verboseBtn.addClickListener(event -> {
-            // TODO
+            // TODO add flag or something to verbose
+            String onOff = "";
+            if (!verboseMode) {
+                verboseMode = true;
+                verboseBtn.setCaption("ON");
+                onOff = "ON";
+            } else {
+                verboseMode = false;
+                verboseBtn.setCaption("OFF");
+                onOff = "OFF";
+            }
+
+            Notification notification = new Notification("Verbose mode " + onOff, "Success!",
+                    Notification.Type.ASSISTIVE_NOTIFICATION, true);
+            notification.setDelayMsec(1000);
+            notification.setPosition(Position.TOP_CENTER);
+            notification.show(Page.getCurrent());
         });
 
         // LAYOUT
@@ -253,7 +276,7 @@ public class MyUI extends UI {
 
         HorizontalLayout editorButtonsLayout = new HorizontalLayout();
         editorButtonsLayout.setSizeFull();
-        editorButtonsLayout.addComponents(compileBtn, loadScriptBtn, clearEditorBtn, clearConsoleBtn, verboseBtn);
+        editorButtonsLayout.addComponents(compileBtn, clearEditorBtn, clearConsoleBtn, verboseBtn);
 
         consolePanel.setContent(consolePanelLayout);
         consoleLayout.addComponent(consolePanel);
@@ -370,5 +393,20 @@ public class MyUI extends UI {
                 metadata = (JSONObject) jsonParser.parse(new FileReader("metadata/dbs.json"));
             }
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    // TODO to show data from trees
+    private void addDataToGrid() {
+        showDataGrid = new Grid<>();
+        showDataGrid.setWidth("100%");
+        showDataGrid.setHeight("100%");
+
+        List<String> lst = Arrays.asList("pupusa", "kakusa", "pepolio");
+        showDataGrid.clearSortOrder();
+        showDataGrid.setItems(lst);
+        showDataGrid.clearSortOrder();
+
+        showDataGrid.addColumn(String::toString).setCaption("Col1");
+        consolePanelLayout.addComponent(showDataGrid);
     }
 }
