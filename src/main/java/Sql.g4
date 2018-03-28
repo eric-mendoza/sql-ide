@@ -108,7 +108,7 @@ alter_action
     ;
 
 action
-    :   'ADD' 'COLUMN' ID ID ('CONSTRAINT' c_constraint)*           #addColumn
+    :   'ADD' 'COLUMN' ID ('CONSTRAINT' c_constraint)*           #addColumn
     |   'ADD' 'CONSTRAINT' c_constraint                             #addConstraint
     |   'DROP' 'COLUMN' ID                                          #dropColumn
     |   'DROP' 'CONSTRAINT' ID                                      #dropConstraint
