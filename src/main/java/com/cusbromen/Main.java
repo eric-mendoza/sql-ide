@@ -12,7 +12,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        CharStream charStream = CharStreams.fromString("USE DATABASE pupa1;");
+        CharStream charStream = CharStreams.fromString("SHOW TABLES;");
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 

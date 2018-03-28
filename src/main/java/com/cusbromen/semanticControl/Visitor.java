@@ -21,8 +21,8 @@ public class Visitor extends SqlBaseVisitor<String> {
         jsonParser = new JSONParser();  // Used to read an existing JSON file
         dbsJsonPath = "metadata/dbs.json";
         symbolTable = new SymbolTableHashMap();
-        symbolTable.readMetadata(dbsJsonPath, jsonParser);  // Load the metadata of dbs before working
         dbInUse = loadLastUsedDb();
+        symbolTable.readMetadata(dbsJsonPath, jsonParser, dbInUse);  // Load the metadata of dbs before working
         syntaxError = false;
 
         // TODO: Este mensaje tendrá que ser mostrado por la gui
@@ -79,7 +79,7 @@ public class Visitor extends SqlBaseVisitor<String> {
 
     @Override
     public String visitShow_databases(SqlParser.Show_databasesContext ctx) {
-        String returnedVal = symbolTable.showDatabases(jsonParser);
+        String returnedVal = symbolTable.showDatabases();
 
         if (returnedVal.equals("0")) {
             semanticErrorsList.add("NO DATABASES.");
@@ -113,6 +113,9 @@ public class Visitor extends SqlBaseVisitor<String> {
 
                     writer.close();
 
+                    // Load database metadata
+                    symbolTable.loadDbMetadata(dbInUse, jsonParser);
+
                 } catch (IOException e){
                     return "error";
                 }
@@ -129,33 +132,58 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
     }
 
+    /** 'CREATE' 'TABLE' table_name table_element_list ';' */
     @Override
     public String visitCreate_table(SqlParser.Create_tableContext ctx) {
+        String tableName = ctx.table_name().ID(0).getText();
         List<SqlParser.Table_elementContext> elementsList = ctx.table_element_list().table_element();
-        int createTableResult = symbolTable.createTable(dbInUse, ctx.table_name().ID(0).getText(), elementsList, jsonParser);
+        int createTableResult = symbolTable.createTable(dbInUse, tableName, elementsList, jsonParser);
 
         if (createTableResult == 0) {
             semanticErrorsList.add("Database <strong>" + dbInUse + "</strong> doesn't exist. Line: " + ctx.start.getLine());
         } else if (createTableResult == 1) {
             successMessages.add("Successfully created table <strong>" + ctx.table_name().ID(0).getText() + "</strong>.");
         } else if (createTableResult == 2) {
-            semanticErrorsList.add("Table <strong>" + ctx.table_name().ID(0).getText() + "</strong> already exists in database <strong>" + dbInUse + "</strong>.");
+            semanticErrorsList.add("Error: Table <strong>" + ctx.table_name().ID(0).getText() + "</strong> already exists in database <strong>" + dbInUse + "</strong>.");
+        } else if (createTableResult == 3){
+            semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't created. Line: " + ctx.start.getLine());
         }
         return "void";
     }
 
+    /** 'ALTER' 'TABLE' (alter_rename | alter_action) ';' */
     @Override
     public String visitAlter_table(SqlParser.Alter_tableContext ctx) {
-        int alterTableResult = symbolTable.alterTable(dbInUse, ctx, jsonParser);
 
-        if (alterTableResult == 0) {
-            semanticErrorsList.add("Database <strong>" + dbInUse + "</strong> doesn't exist. Line: " + ctx.start.getLine());
-        } else if (alterTableResult == 1) {
-            successMessages.add("Successfull operation.");
-        } else if (alterTableResult == 2) {
-            semanticErrorsList.add("The table you are trying to create already exists in database <strong>" + dbInUse + "</strong>.");
-        } else if (alterTableResult == 3) {
-            semanticErrorsList.add("The table you are trying to rename does not exist in database <strong>" + dbInUse + "</strong>.");
+        if (ctx.alter_rename() != null){
+            String[] names = visit(ctx.alter_rename()).split(" ");
+            String oldName = names[0];
+            String newName = names[1];
+
+            int renameResult = symbolTable.renameTable(dbInUse, oldName, newName);
+
+            if (renameResult == 0) {
+                semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't renamed. Line: " + ctx.start.getLine());
+            } else if (renameResult == 1) {
+                successMessages.add("Successfully renamed table <strong>" + oldName + "</strong> to <strong>" + newName + "</strong>.");
+            } else if (renameResult == 2) {
+                semanticErrorsList.add("The table <strong>" + newName + "</strong> already exists in database <strong>" + dbInUse + "</strong>.");
+            } else if (renameResult == 3) {
+                semanticErrorsList.add("The table y<strong>" + oldName + "</strong> does not exist in database <strong>" + dbInUse + "</strong>.");
+            }
+
+        } else {
+            int alterTableResult = symbolTable.alterTable(dbInUse);
+
+            if (alterTableResult == 0) {
+                semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't altered. Line: " + ctx.start.getLine());
+            } else if (alterTableResult == 1) {
+                successMessages.add("Successfull operation.");
+            } else if (alterTableResult == 2) {
+                semanticErrorsList.add("The table you are trying to create already exists in database <strong>" + dbInUse + "</strong>.");
+            } else if (alterTableResult == 3) {
+                semanticErrorsList.add("The table you are trying to rename does not exist in database <strong>" + dbInUse + "</strong>.");
+            }
         }
 
         return "void";
@@ -168,10 +196,10 @@ public class Visitor extends SqlBaseVisitor<String> {
 
     @Override
     public String visitShow_tables(SqlParser.Show_tablesContext ctx) {
-        String returnedVal = symbolTable.showTables(dbInUse, jsonParser);
+        String returnedVal = symbolTable.showTables(dbInUse);
 
         if (returnedVal.equals("0")) {
-            semanticErrorsList.add("Database <strong>" + dbInUse + "</strong> doesn't exist. Line: " + ctx.start.getLine());
+            semanticErrorsList.add("Error: You haven't selected a DB yet, can't show any tables. Line: " + ctx.start.getLine());
         } else {
             successMessages.add("Successfull operation. <strong>SHOW TABLES</strong> in database " + dbInUse + ": <br>" + returnedVal);
         }
@@ -214,9 +242,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitCondition(ctx);
     }
 
+    /** ID 'RENAME' 'TO' ID */
     @Override
     public String visitAlter_rename(SqlParser.Alter_renameContext ctx) {
-        return super.visitAlter_rename(ctx);
+        return ctx.ID(0).getSymbol().getText() + " " + ctx.ID(1).getSymbol().getText();
     }
 
     @Override
