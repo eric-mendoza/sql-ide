@@ -1,6 +1,5 @@
 package com.cusbromen.semanticControl;
 
-import com.cusbromen.antlr.SqlParser;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -163,7 +162,7 @@ public class SymbolTableHashMap implements SymbolTable{
                 verboseParser.add(">> Writing changes to file " + dbsJsonPath);
                 PrintWriter writer2 = new PrintWriter(dbsJsonPath, "UTF-8");
                 JSONObject table = (JSONObject) metadata.get(dbInUseId);
-                Long noTables = (Long) table.get("noTables");
+                Integer noTables = (Integer) table.get("noTables");
                 noTables++;
                 table.put("noTables", noTables);
 
@@ -317,7 +316,6 @@ public class SymbolTableHashMap implements SymbolTable{
             // Load last used db to memory
             if (lastUsedDb != null) {
                 loadDbMetadata(lastUsedDb, jsonParser);
-                dbInUseId = lastUsedDb;
                 verboseParser.add(">> Loading las used database to memory: " + dbInUseId);
             }
 
@@ -340,6 +338,7 @@ public class SymbolTableHashMap implements SymbolTable{
         if (db.exists()){
             try {
                 dbInUseMetadata = (JSONObject) jsonParser.parse(new FileReader(dbPath));
+                dbInUseId = dbName;  // Update DB in use
                 verboseParser.add(">> Data loaded!");
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
@@ -358,6 +357,30 @@ public class SymbolTableHashMap implements SymbolTable{
         Object db = metadata.get(id);
         if (db == null) return false;
         return true;
+    }
+
+    /**
+     * Gets a db metadata JSONObject
+     * @param id name of the db
+     * @return db all tables
+     */
+    public JSONObject getDb(String id, JSONParser jsonParser){
+        verboseParser.add(">> Will try to load metadata from database");
+        String dbPath = "metadata/" + id + "/" + id + ".json";
+        File db = new File(dbPath);
+        verboseParser.add("Using file: " + dbPath);
+        JSONObject dbObject = null;
+
+        if (db.exists()){
+            try {
+                dbObject = (JSONObject) jsonParser.parse(new FileReader(dbPath));
+                verboseParser.add(">> Data loaded!");
+            } catch (IOException | ParseException e) {
+                e.printStackTrace();
+            }
+            return dbObject;
+        }
+        return null;  // This should never happen
     }
 
     /**
@@ -381,4 +404,34 @@ public class SymbolTableHashMap implements SymbolTable{
     }
 
     public List<String> getVerboseParser() { return verboseParser; }
+
+    public void deleteDb(String dbId) {
+        try {
+            // Delete from general metadata
+            metadata.remove(dbId);
+
+            verboseParser.add(">> Loading file " + dbsJsonPath);
+            verboseParser.add(">> Removing " + dbId + " from file " + dbsJsonPath);
+            File dbsJsonFile = new File(dbsJsonPath);
+            PrintWriter writer = new PrintWriter(dbsJsonFile, "UTF-8");
+            writer.write(metadata.toJSONString());
+            writer.close();
+            verboseParser.add(">> Changed metadata and wrote to file " + dbsJsonPath + "!");
+
+            Files.walkFileTree(Paths.get("metadata/" + dbId), new DeleteFileVisitor());  // Delete old path and all his files
+            verboseParser.add(">> Deleted directory!");
+
+            // Verify if it was the dbInUse and delete it
+            if (dbInUseId.equals(dbId)){
+                dbInUseId = null;
+                dbInUseMetadata = null;
+                File dbInUseFile = new File("metadata/lastDbUsed");
+                dbInUseFile.delete();
+            }
+
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+
+    }
 }

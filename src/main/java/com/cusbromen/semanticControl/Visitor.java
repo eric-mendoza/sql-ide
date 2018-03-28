@@ -9,6 +9,8 @@ import org.json.simple.parser.JSONParser;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
+import java.util.Set;
 
 @SuppressWarnings("unchecked") // JSON's fault
 public class Visitor extends SqlBaseVisitor<String> {
@@ -58,6 +60,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         String oldName = ctx.ID(0).getSymbol().getText();
         String newName = ctx.ID(1).getSymbol().getText();
 
+        // TODO rename solo mueve el archivo de metadata, no el futuro Btree, hay que hacerlo recursivo para mover todos
         int result = symbolTable.renameDb(oldName, newName);
 
         if (result == 1){
@@ -74,9 +77,46 @@ public class Visitor extends SqlBaseVisitor<String> {
         return "void";
     }
 
+    /** 'DROP' 'DATABASE' ID ';' */
     @Override
     public String visitDrop_database(SqlParser.Drop_databaseContext ctx) {
-        return super.visitDrop_database(ctx);
+        String dbId = ctx.ID().getSymbol().getText();
+
+        // See if db exists
+        if (!symbolTable.dbExists(dbId)){
+            semanticErrorsList.add("Couldn't delete database, <strong>" + dbId + "</strong>  doesn't exists. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        // Get the number of records on db
+        JSONObject db = symbolTable.getDb(dbId, jsonParser);
+        Set<String> tableNames = db.keySet();
+        JSONObject table;
+        Long records = 0L;
+        for (String tableId : tableNames) {
+            table = (JSONObject) db.get(tableId);
+            records += (Long) table.get("noRecords");
+        }
+
+        // Warning message TODO: This message has to be displayed on the gui, use the delete input function
+        System.out.println("Are you sure you want to delete database '" + dbId + "' which contains '" + records + "' records? (y/n)");
+        boolean delete = getMessageAnswer();
+
+        if (delete){
+            // See if is dbInUse
+            if (dbInUse.equals(dbId)){
+                dbInUse = null;
+            }
+
+            // Delete from symbolTable
+            symbolTable.deleteDb(dbId);
+
+            successMessages.add("Database <strong>" + dbId + "</strong> was deleted</strong>.");
+        } else {
+            successMessages.add("Database <strong>" + dbId + "</strong> wasn't deleted</strong>.");
+        }
+
+        return "void";
     }
 
     /** 'SHOW' 'DATABASES' ';' */
@@ -207,13 +247,17 @@ public class Visitor extends SqlBaseVisitor<String> {
         return "void";
     }
 
-    /**'DROP' 'DATABASE' ID ';'*/
+    /**'DROP' 'TABLE' ID ';'*/
     @Override
     public String visitDrop_table(SqlParser.Drop_tableContext ctx) {
+        String tableId = ctx.ID().getSymbol().getText();
+
+
+
         return super.visitDrop_table(ctx);
     }
 
-    /** 'SHOW' 'DATABASES' ';' */
+    /** 'SHOW' 'TABLES' ';' */
     @Override
     public String visitShow_tables(SqlParser.Show_tablesContext ctx) {
         String returnedVal = symbolTable.showTables(dbInUse);
@@ -634,6 +678,13 @@ public class Visitor extends SqlBaseVisitor<String> {
 
     public List<String> getSuccessMessages() {
         return successMessages;
+    }
+
+    public boolean getMessageAnswer(){
+        // TODO Use this method to display and receive answer on gui
+        Scanner sc = new Scanner(System.in);
+        String answer = sc.next();
+        return answer.equals("y");
     }
 
     private String loadLastUsedDb() {
