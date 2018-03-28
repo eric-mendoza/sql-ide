@@ -35,7 +35,7 @@ public class BpTree {
      * Insertion of char leaf into the B+ tree
      * @param val Value to insert
      */
-    public void insert() {
+    public void insert(PrimaryKey key, Record<?, ?> val) {
 
     }
 

@@ -2,7 +2,7 @@ package com.cusbromen.bptree;
 
 import java.io.RandomAccessFile;
 
-public class DateRecord implements Record<DateRecord> {
+public class DateRecord implements Record<DateRecord, String> {
 
 
     @Override
@@ -11,7 +11,7 @@ public class DateRecord implements Record<DateRecord> {
     }
 
     @Override
-    public Record getPrimaryKey() {
+    public String getValue() {
         return null;
     }
 

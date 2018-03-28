@@ -2,7 +2,7 @@ package com.cusbromen.bptree;
 
 import java.io.RandomAccessFile;
 
-public class FloatRecord implements Record<FloatRecord> {
+public class FloatRecord implements Record<FloatRecord, Double> {
 
     @Override
     public int compareTo(FloatRecord o) {
@@ -10,7 +10,7 @@ public class FloatRecord implements Record<FloatRecord> {
     }
 
     @Override
-    public Record getPrimaryKey() {
+    public Double getValue() {
         return null;
     }
 

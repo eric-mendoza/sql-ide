@@ -2,15 +2,8 @@ package com.cusbromen.bptree;
 
 import java.io.RandomAccessFile;
 
-public interface Record<T> extends Comparable<T>{
+public interface Record<T, V> extends Comparable<T>{
 
-
-    /**
-     * Get the record that represents the primary key
-     * Must implement comparable
-     * @return Record that represents comparable
-     */
-    Record getPrimaryKey();
 
     /**
      * Writes the record to the current memory address
@@ -23,4 +16,10 @@ public interface Record<T> extends Comparable<T>{
      * @param file File to read from
      */
     void readFromFile(RandomAccessFile file);
+
+    /**
+     * Gets the value stored in the record
+     * @return Value stored
+     */
+    V getValue();
 }
