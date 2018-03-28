@@ -7,10 +7,12 @@ package com.cusbromen.bptree;
 
 import java.io.FileNotFoundException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
 
 public class BpTree {
 
     private RandomAccessFile file;
+    private ArrayList<Type> types;
     private int degree;
 
     /**
@@ -35,7 +37,7 @@ public class BpTree {
      * Insertion of char leaf into the B+ tree
      * @param val Value to insert
      */
-    public void insert(PrimaryKey key, Record<?, ?> val) {
+    public void insert(Key key, Row val) {
 
     }
 

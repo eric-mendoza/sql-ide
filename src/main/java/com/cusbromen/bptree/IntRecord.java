@@ -1,26 +1,34 @@
 package com.cusbromen.bptree;
 
+import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public class IntRecord implements Record<IntRecord, Integer> {
+public class IntRecord implements Record<IntRecord> {
+
+    private Integer val;
+
+    public IntRecord() {
+
+    }
+
+    IntRecord(RandomAccessFile file) throws IOException{
+        readFromFile(file);
+    }
+
 
     @Override
     public int compareTo(IntRecord o) {
-        return 0;
+        return val.compareTo(o.val);
+    }
+
+
+    @Override
+    public void writeToFile(RandomAccessFile file) throws IOException {
+        file.writeInt(val);
     }
 
     @Override
-    public Integer getValue() {
-        return 3;
-    }
-
-    @Override
-    public void writeToFile(RandomAccessFile file) {
-
-    }
-
-    @Override
-    public void readFromFile(RandomAccessFile file) {
-
+    public void readFromFile(RandomAccessFile file) throws IOException {
+        val = file.readInt();
     }
 }

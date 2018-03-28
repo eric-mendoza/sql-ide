@@ -1,29 +1,20 @@
-/**
- * @author Rodrigo Custodio
- * Description: Class that represents a Row of the table
- */
 package com.cusbromen.bptree;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 
-public class Row {
+public class Key implements Comparable<Key>{
+
     private ArrayList<Record<?>> records;
 
-
-    public Row() {
+    public Key() {
         records = new ArrayList<>();
     }
 
-    /**
-     * Writes the records to the current block in the RandomAccessFile
-     * @param file File to write
-     */
     public void writeToFile(RandomAccessFile file) throws IOException{
-        for (Record<?> record :
-                records) {
-            record.writeToFile(file);
+        for (Record<?> rec : records) {
+            rec.writeToFile(file);
         }
     }
 
@@ -50,11 +41,13 @@ public class Row {
         }
     }
 
-    /**
-     * Adds record to the row
-     * @param record Record to add
-     */
-    public void add(Record<?> record) {
-        records.add(record);
+    @Override
+    public int compareTo(Key o) {
+        for (int i = 0; i < records.size(); i++) {
+            int cmp = records.get(i).compareTo(o.records.get(i));
+            if (cmp != 0)
+                return cmp;
+        }
+        return 0;
     }
 }

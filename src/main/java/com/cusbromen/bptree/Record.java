@@ -1,25 +1,22 @@
 package com.cusbromen.bptree;
 
+import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public interface Record<T, V> extends Comparable<T>{
+public interface Record<T> extends Comparable<T>{
 
 
     /**
      * Writes the record to the current memory address
      * @param file File to write in
      */
-    void writeToFile(RandomAccessFile file);
+    void writeToFile(RandomAccessFile file) throws IOException;
 
     /**
      * Populates the record with the values in the memory address
      * @param file File to read from
      */
-    void readFromFile(RandomAccessFile file);
+    void readFromFile(RandomAccessFile file) throws IOException;
 
-    /**
-     * Gets the value stored in the record
-     * @return Value stored
-     */
-    V getValue();
+
 }
