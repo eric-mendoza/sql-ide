@@ -3,7 +3,7 @@ package com.cusbromen.bptree;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public interface Record<T> extends Comparable<T>{
+public interface Record extends Comparable<Record>{
 
 
     /**

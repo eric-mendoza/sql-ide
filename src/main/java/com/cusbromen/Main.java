@@ -3,6 +3,7 @@ package com.cusbromen;
 import com.cusbromen.antlr.CustomErrorListener;
 import com.cusbromen.antlr.SqlLexer;
 import com.cusbromen.antlr.SqlParser;
+import com.cusbromen.bptree.BpTree;
 import com.cusbromen.semanticControl.Visitor;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.atn.PredictionMode;
@@ -15,6 +16,13 @@ public class Main {
         CharStream charStream = CharStreams.fromString("DROP DATABASE eliminar;");
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
+
+        try {
+            BpTree bpTree = new BpTree("test.bin", 4096);
+        }catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
 
         SqlParser grammarParser = new SqlParser(commonTokenStream);
 

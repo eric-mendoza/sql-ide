@@ -3,7 +3,7 @@ package com.cusbromen.bptree;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public class FloatRecord implements Record<FloatRecord> {
+public class FloatRecord implements Record {
 
 
     private Double val;
@@ -18,8 +18,9 @@ public class FloatRecord implements Record<FloatRecord> {
 
 
     @Override
-    public int compareTo(FloatRecord o) {
-        return val.compareTo(o.val);
+    public int compareTo(Record o) {
+        FloatRecord rec = (FloatRecord) o;
+        return val.compareTo(rec.val);
     }
 
     @Override

@@ -3,7 +3,7 @@ package com.cusbromen.bptree;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public class IntRecord implements Record<IntRecord> {
+public class IntRecord implements Record {
 
     private Integer val;
 
@@ -17,8 +17,9 @@ public class IntRecord implements Record<IntRecord> {
 
 
     @Override
-    public int compareTo(IntRecord o) {
-        return val.compareTo(o.val);
+    public int compareTo(Record o) {
+        IntRecord rec = (IntRecord) o;
+        return val.compareTo(rec.val);
     }
 
 
