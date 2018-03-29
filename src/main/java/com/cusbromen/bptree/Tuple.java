@@ -1,18 +1,13 @@
-/**
- * @author Rodrigo Custodio
- * Description: Class that represents a Row of the table
- */
 package com.cusbromen.bptree;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 
-public class Row {
-    private ArrayList<Record<?>> records;
+public class Tuple {
+    protected ArrayList<Record> records;
 
-
-    public Row() {
+    public Tuple() {
         records = new ArrayList<>();
     }
 
@@ -20,8 +15,8 @@ public class Row {
      * Writes the records to the current block in the RandomAccessFile
      * @param file File to write
      */
-    public void writeToFile(RandomAccessFile file) throws IOException{
-        for (Record<?> record :
+    public void writeToFile(RandomAccessFile file) throws IOException {
+        for (Record record :
                 records) {
             record.writeToFile(file);
         }
@@ -54,7 +49,7 @@ public class Row {
      * Adds record to the row
      * @param record Record to add
      */
-    public void add(Record<?> record) {
+    public void add(Record record) {
         records.add(record);
     }
 }

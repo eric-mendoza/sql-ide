@@ -3,7 +3,7 @@ package com.cusbromen.bptree;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public class CharRecord implements Record<CharRecord> {
+public class CharRecord implements Record {
 
     private String val;
 
@@ -17,8 +17,9 @@ public class CharRecord implements Record<CharRecord> {
     }
 
     @Override
-    public int compareTo(CharRecord o) {
-        return val.compareTo(o.val);
+    public int compareTo(Record o) {
+        CharRecord rec = (CharRecord) o;
+        return val.compareTo(rec.val);
     }
 
     @Override

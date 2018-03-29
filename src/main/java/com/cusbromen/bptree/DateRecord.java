@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Date;
 
-public class DateRecord implements Record<DateRecord> {
+public class DateRecord implements Record {
 
 
     private Date val;
@@ -18,8 +18,9 @@ public class DateRecord implements Record<DateRecord> {
     }
 
     @Override
-    public int compareTo(DateRecord o) {
-        return val.compareTo(o.val);
+    public int compareTo(Record o) {
+        DateRecord rec = (DateRecord) o;
+        return val.compareTo(rec.val);
     }
 
 
