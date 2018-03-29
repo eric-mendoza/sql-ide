@@ -116,6 +116,10 @@ public class MyUI extends UI {
 
         leftOptionsLayout.addComponents(dbsTreeLbl, dbsTree);
 
+        Panel leftPanel = new Panel("Databases");
+        leftPanel.setHeight(535.0f, Unit.PIXELS);
+        leftPanel.setContent(leftOptionsLayout);
+
         /* console panel */
         Panel consolePanel = new Panel("Console");
         consolePanel.setHeight(500.0f, Unit.PIXELS);
@@ -157,7 +161,6 @@ public class MyUI extends UI {
             if (editorInput != null) {
                 setFocusedComponent(consolePanel);
                 // Create visitor
-                dbsTree.select(visitor.getDbInUse());
 
                 /* clear the console */
                 consolePanelLayout.removeAllComponents();
@@ -226,6 +229,8 @@ public class MyUI extends UI {
                 readMetadataFromJSON();
                 updateDbsTree();
 
+                dbsTree.select("DB: " + visitor.getDbInUse());
+
                 Notification notification = new Notification("Compilation done!", "Execution terminated!");
                 notification.setDelayMsec(2000);
                 notification.setPosition(Position.TOP_CENTER);
@@ -293,7 +298,7 @@ public class MyUI extends UI {
         consolePanel.setContent(consolePanelLayout);
         consoleLayout.addComponent(consolePanel);
         layout.addComponents(editorLbl, editorButtonsLayout, editor);
-        hLayout.addComponents(leftOptionsLayout, layout);
+        hLayout.addComponents(leftPanel, layout);
         
         setContent(pagelayout);
     }
