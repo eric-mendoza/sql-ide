@@ -5,14 +5,12 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -138,7 +136,14 @@ public class SymbolTableHashMap {
         }
     }
 
-    public int createTable(String tableName, JSONObject tableProps) {
+    /**
+     * This method creates a new Table in the DB in use
+     * @param tableName the name of the new table
+     * @param tableProps is the JSON with the properties of the table
+     * @param newReferencedTables This tuple contains (referencedTableId, constraintId)
+     * @return 2, if table already existed; 1, success; 0: error; 3: constraint duplicated
+     */
+    public int createTable(String tableName, JSONObject tableProps, ArrayList<String[]> newReferencedTables) {
         verboseParser.add(">> Will try to create metadata for table " + tableName);
         String dbPath = "metadata/" + dbInUseId + "/" + dbInUseId + ".json";
         File db = new File(dbPath);
@@ -153,7 +158,35 @@ public class SymbolTableHashMap {
             } else {
 
                 verboseParser.add(">> Writing changes to file " + dbPath);
+
+                // Verify if there are foreign keys references to create
+                if (newReferencedTables.size() > 0){
+                    for (String[] newReferencedTableTuple : newReferencedTables) {
+                        // Add reference to referenced table
+                        JSONObject referencedTable = getTable(newReferencedTableTuple[0]);  // get table
+                        Object ingoingReferences = referencedTable.get("ingoingReferences");  // get ingoing references
+                        JSONObject inRef;
+                        if (ingoingReferences == null){
+                            // Create ingoing references array
+                            inRef = new JSONObject();
+                        } else {
+                            // Cast object
+                            inRef = (JSONObject) ingoingReferences;
+
+                            // Verify that constraint has unique name
+                            if (inRef.get(newReferencedTableTuple[1]) != null) return 3;
+                        }
+
+                        inRef.put(newReferencedTableTuple[1], tableName);  // add the new reference <constraintName, referencedTable>
+                        referencedTable.put("ingoingReferences", inRef);  // Update references
+                        dbInUseMetadata.put(newReferencedTableTuple[0], referencedTable);  // Update table in dbMetadata
+                    }
+                }
+
+                // Save new table
                 dbInUseMetadata.put(tableName, tableProps);
+
+                // Overwrite db JSON
                 PrintWriter writer = new PrintWriter(db, "UTF-8");
                 writer.write(dbInUseMetadata.toJSONString());
                 writer.close();
@@ -168,6 +201,7 @@ public class SymbolTableHashMap {
 
                 writer2.write(metadata.toJSONString());
                 writer2.close();
+
                 return 1;
             }
         } catch (Exception e) {
@@ -467,5 +501,23 @@ public class SymbolTableHashMap {
         } else {
             return "0";
         }
+    }
+
+    /**
+     * Deletes a table. Assumes that there are no ingoing references, and that table exists.
+     * @param tableId table to delete
+     */
+    public void deleteTable(String tableId) {
+        try {
+            dbInUseMetadata.remove(tableId);
+
+            // Update JSON
+            PrintWriter writer = new PrintWriter("metadata/" + dbInUseId + "/" + dbInUseId + ".json", "UTF-8");
+            writer.write(dbInUseMetadata.toJSONString());
+            writer.close();
+        } catch (FileNotFoundException | UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
     }
 }

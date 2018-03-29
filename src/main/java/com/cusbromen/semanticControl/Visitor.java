@@ -18,6 +18,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     private JSONParser jsonParser;
     private JSONObject newTable, newColumns, newColumn, newConstraints;  // This is going to be used to construct a table step by step
     private String dbsJsonPath, dbInUse, newTableName, newColumnName, newTypeColumn;
+    private ArrayList<String[]> newReferencedTables; // it's going to be used to save referenced tables temporary
     private SymbolTableHashMap symbolTable;
     private String lastDbUsedPath = "metadata/lastDbUsed";
     private boolean syntaxError;
@@ -189,6 +190,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             // Create new field for columns and for table constraints
             newColumns = new JSONObject();
             newConstraints = new JSONObject();
+            newReferencedTables = new ArrayList<>();
 
             // Analyze columns for the table and add them to newColumn and all the constraints too
             String visit = visit(ctx.table_element_list());
@@ -201,7 +203,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             newTable.put("constraints", newConstraints);
 
 
-            int createTableResult = symbolTable.createTable(newTableName, newTable);
+            int createTableResult = symbolTable.createTable(newTableName, newTable, newReferencedTables);
 
             if (createTableResult == 0) {
                 semanticErrorsList.add("Database <strong>" + dbInUse + "</strong> doesn't exist. Line: " + ctx.start.getLine());
@@ -209,6 +211,8 @@ public class Visitor extends SqlBaseVisitor<String> {
                 successMessages.add("Successfully created table <strong>" + newTableName + "</strong>.");
             } else if (createTableResult == 2) {
                 semanticErrorsList.add("Error: Table <strong>" + newTableName + "</strong> already exists in database <strong>" + dbInUse + "</strong>. Line: " + ctx.start.getLine());
+            } else if (createTableResult == 3) {
+                semanticErrorsList.add("Error: Two foreign keys have the same ID. Couldn't create table <strong>" + newTableName + "</strong>. Line: " + ctx.start.getLine());
             }
             return "void";
         } else {
@@ -250,8 +254,45 @@ public class Visitor extends SqlBaseVisitor<String> {
     /**'DROP' 'TABLE' ID ';'*/
     @Override
     public String visitDrop_table(SqlParser.Drop_tableContext ctx) {
-        String tableId = ctx.ID().getSymbol().getText();
+        // Verify if we have selected a DB
+        if (dbInUse != null){
+            String tableId = ctx.ID().getSymbol().getText();
 
+            // See if table exists
+            if (!symbolTable.tableExists(tableId)){
+                semanticErrorsList.add("Couldn't delete table, <strong>" + tableId + "</strong>  doesn't exists. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
+            // Get table to verify ingoing references
+            JSONObject table = symbolTable.getTable(tableId);
+            Object referencesObject = table.get("ingoingReferences");
+            if (referencesObject == null){
+                // We can remove table
+                symbolTable.deleteTable(tableId);
+            } else {
+                JSONObject references = (JSONObject) referencesObject;
+                Set<String> constraintNames = references.keySet();
+                if (constraintNames.size() == 0){
+                    // we can remove table
+                    symbolTable.deleteTable(tableId);
+                } else {
+                    // Get ingoing references
+                    String referencesString = "";
+                    for (String ref : constraintNames) {
+                        referencesString += "<br>*    " + ref + " from table " + references.get(ref);
+                    }
+                    referencesString += "<br>";
+
+                    semanticErrorsList.add("Couldn't delete table. <strong>" + tableId + "</strong> has the following ingoing references: " + referencesString +". Line: " + ctx.start.getLine());
+                    return "error";
+                }
+            }
+
+        } else {
+            semanticErrorsList.add("Couldn't delete table. You must select a DB first. Line: " + ctx.start.getLine());
+            return "error";
+        }
 
 
         return super.visitDrop_table(ctx);
@@ -388,11 +429,18 @@ public class Visitor extends SqlBaseVisitor<String> {
         // Get column name
         newColumnName = ctx.ID().getSymbol().getText();
 
+        // Verify that any other column doesn't have the same name
+        Object columnObject = newColumns.get(newColumnName);
+        if (columnObject != null) {
+            semanticErrorsList.add("Error: Two columns can't have the same ID. Column repeated <strong>" + newColumnName + "</strong>. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
         // Get props of new column
         newColumn = new JSONObject();
-        newTypeColumn = visit(ctx.data_type_def());
+        String result = visit(ctx.data_type_def());
 
-        if (newTypeColumn.equals("error")) return "error";  // Stop execution
+        if (result.equals("error")) return "error";  // Stop execution
 
         newColumn.put("type", newTypeColumn);
 
@@ -409,6 +457,9 @@ public class Visitor extends SqlBaseVisitor<String> {
     /** data_type ('CONSTRAINT' c_constraint)? */
     @Override
     public String visitData_type_def(SqlParser.Data_type_defContext ctx) {
+        // Get column type
+        newTypeColumn = visit(ctx.data_type());
+
         // Analyze table constraints
         SqlParser.C_constraintContext tableConstraint = ctx.c_constraint();
         if (tableConstraint != null){
@@ -417,7 +468,7 @@ public class Visitor extends SqlBaseVisitor<String> {
                 return "error";  // Stop all the execution
             }
         }
-        return visit(ctx.data_type());  // Return only the column type
+        return "void";  // Return only the column type
     }
 
 
@@ -453,6 +504,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         boolean correctName = constraintId.startsWith("PK_");
         boolean correctLastName = constraintId.startsWith(newTableName, 3);
 
+
         if (!correctName){
             semanticErrorsList.add("Error: By convention, the primary key of a table should begin with <strong>PK_</strong>. You can't use <strong>" + constraintId + "</strong>. Line: " + ctx.getStart().getLine());
             return "error";
@@ -460,6 +512,12 @@ public class Visitor extends SqlBaseVisitor<String> {
 
         if (!correctLastName){
             semanticErrorsList.add("Error: By convention, the primary key of a table should end with the name of the table, in this case: <strong>" + newTableName +"</strong>. You can't use <strong>" + constraintId + "</strong>. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
+
+        // Verify if primary key wasn't declared before
+        if (newConstraints.get(constraintId) != null) {
+            semanticErrorsList.add("Error: You can't declare more than one primary key. Line: " + ctx.getStart().getLine());
             return "error";
         }
 
@@ -491,36 +549,32 @@ public class Visitor extends SqlBaseVisitor<String> {
         List<TerminalNode> ids = ctx.ID();
         List<TerminalNode> referencesIds = ctx.foreignKeyReferences().ID();
 
-        // Analyse the constraint name, it should begin with FK_ and end with table name
+        // Analyse the constraint name, it should begin with FK_ and
         String constraintId = ids.get(0).getSymbol().getText();
         boolean correctName = constraintId.startsWith("FK_");
-        boolean correctLastName = constraintId.startsWith(newTableName, 3);
 
         if (!correctName){
             semanticErrorsList.add("Error: By convention, a foreign key should begin with <strong>FK_</strong>. You can't use <strong>" + constraintId + "</strong>. Line: " + ctx.getStart().getLine());
             return "error";
         }
 
-        if (!correctLastName){
-            semanticErrorsList.add("Error: By convention, a foreign key should end with the name of the table, in this case: <strong>" + newTableName +"</strong>. You can't use <strong>" + constraintId + "</strong>. Line: " + ctx.getStart().getLine());
-            return "error";
-        }
-
-        // See if table of reference exists
+        // See if table referenced exists
         String referencedTableId = referencesIds.get(0).getSymbol().getText();
         JSONObject referencedTable = symbolTable.getTable(referencedTableId);
         if (referencedTable == null){
             semanticErrorsList.add("Error: The table <strong>" + referencedTableId +"</strong> which you are trying to reference doesn't exists. Line: " + ctx.getStart().getLine());
             return "error";
         } else {
-            // TODO Add reference prop to referenced table
+            String[] reference = {referencedTableId, constraintId};
+            newReferencedTables.add(reference);
         }
 
         // Verify references between both tables
         // First: both lists of column ID's should have the same size
-        JSONArray referencedPrimaryKey = symbolTable.getPrimaryKey(referencedTableId);
+        JSONArray referencedPrimaryKey = symbolTable.getPrimaryKey(referencedTableId);  // get primary key of referenced table
         JSONObject referencedTableColumns = ((JSONObject) referencedTable.get("columns"));
         int sizeReferenced;
+        // If they didn't specified the columns of the key
         if (referencesIds.size() == 1){
             // Obtain size of primary key of referenced table
             if (ids.size() > 1) sizeReferenced = referencedPrimaryKey.size() + 1;
@@ -540,16 +594,18 @@ public class Visitor extends SqlBaseVisitor<String> {
         JSONObject actualColumnJson, referencedColumnJson;
         JSONArray columnsOfKey = new JSONArray();
         JSONArray referencedColumns = new JSONArray();
+        boolean usingActualColumn;
         if (ids.size() > 1){
             if (referencesIds.size() > 1){
-                // Columns specified on both parts
+                // CASE 1: Columns specified on both parts
                 for (int i = 1; i < ids.size(); i++) {
                     // Get columns name
                     column = ids.get(i).getSymbol().getText();
                     referencedColumn = referencesIds.get(i).getSymbol().getText();
 
                     // See if the column exists in actual table
-                    if ((newColumns.get(column) == null) || newColumnName.equals(column)){
+                    usingActualColumn = newColumnName.equals(column);
+                    if ((newColumns.get(column) == null) && !usingActualColumn){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY. The column <strong>" + column +"</strong> doesn't exists in table <strong>" + newTableName + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";
                     }
@@ -561,10 +617,19 @@ public class Visitor extends SqlBaseVisitor<String> {
                     }
 
                     // See if the types are the same
-                    actualColumnJson = (JSONObject) newColumns.get(column);
+                    String actualColumnJsonType;
+                    // referenced column type
                     referencedColumnJson = (JSONObject) referencedTableColumns.get(referencedColumn);
-                    String actualColumnJsonType = (String) actualColumnJson.get("type");
                     String referencedColumnJsonType = (String) referencedColumnJson.get("type");
+                    // local column
+                    if (!usingActualColumn){
+                        // Get column
+                        actualColumnJson = (JSONObject) newColumns.get(column);
+                        actualColumnJsonType = (String) actualColumnJson.get("type");
+                    } else {
+                        actualColumnJsonType = newTypeColumn;
+                    }
+
                     if (!actualColumnJsonType.equals(referencedColumnJsonType)){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY because types don't match. The column <strong>" + column + "</strong> is <strong>" + actualColumnJsonType + "</strong>, while the column <strong>" + referencedColumn + "</strong> is <strong>" + referencedColumnJsonType + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";
@@ -575,14 +640,15 @@ public class Visitor extends SqlBaseVisitor<String> {
                     columnsOfKey.add(column);
                 }
             } else {
-                // Columns not specified on referenced, we must get primary key of referenced table
+                // CASE 2: Columns not specified on referenced, we must get primary key of referenced table
                 for (int i = 1; i < ids.size(); i++) {
                     // Get columns name
                     column = ids.get(i).getSymbol().getText();
                     referencedColumn = (String) referencedPrimaryKey.get(i - 1);
 
                     // See if the column exists in actual table
-                    if ((newColumns.get(column) == null) || newColumnName.equals(column)){
+                    usingActualColumn = newColumnName.equals(column);
+                    if ((newColumns.get(column) == null) && !usingActualColumn){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY. The column <strong>" + column +"</strong> doesn't exists in table <strong>" + newTableName + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";
                     }
@@ -595,10 +661,19 @@ public class Visitor extends SqlBaseVisitor<String> {
                     }
 
                     // See if the types are the same
-                    actualColumnJson = (JSONObject) newColumns.get(column);
+                    // local column
+                    String actualColumnJsonType;
+                    if (!usingActualColumn){
+                        // Get column
+                        actualColumnJson = (JSONObject) newColumns.get(column);
+                        actualColumnJsonType = (String) actualColumnJson.get("type");
+                    } else {
+                        actualColumnJsonType = newTypeColumn;
+                    }
+                    // referenced column type
                     referencedColumnJson = (JSONObject) columns;
-                    String actualColumnJsonType = (String) actualColumnJson.get("type");
                     String referencedColumnJsonType = (String) referencedColumnJson.get("type");
+
                     if (!actualColumnJsonType.equals(referencedColumnJsonType)){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY because types don't match. The column <strong>" + column + "</strong> is <strong>" + actualColumnJsonType + "</strong>, while the column <strong>" + referencedColumn + "</strong> is <strong>" + referencedColumnJsonType + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";
@@ -613,7 +688,7 @@ public class Visitor extends SqlBaseVisitor<String> {
 
         else {
             if (referencesIds.size() == 1){
-                // If primary key of referenced table is composite, show error
+                // CASE 3: If primary key of referenced table is composite, show error
                 if (referencedPrimaryKey.size() > 1){
                     semanticErrorsList.add("Error: Couldn't create FOREIGN KEY, because the number of referenced columns don't match. Tip: Maybe the primary key of the referenced table is composite. Line: " + ctx.getStart().getLine());
                     return "error";
@@ -633,6 +708,7 @@ public class Visitor extends SqlBaseVisitor<String> {
                 columnsOfKey.add(newColumnName);
                 referencedColumns.add(columnReferencedId);
             } else {
+                // CASE 4
                 if (referencesIds.size() > 2){
                     semanticErrorsList.add("Error: Couldn't create FOREIGN KEY, because the number of referenced columns don't match. Line: " + ctx.getStart().getLine());
                     return "error";
