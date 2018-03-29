@@ -29,7 +29,7 @@ expression
     |   insert_into
     |   update
     |   delete
-    |   select)*
+    |   select)* EOF
     ;
 
 create_database
@@ -69,7 +69,7 @@ show_tables
     ;
 
 show_cols_from
-    :   'SHOW' 'COLUMNS' 'FROM' ID
+    :   'SHOW' 'COLUMNS' 'FROM' ID ';'
     ;
 
 insert_into

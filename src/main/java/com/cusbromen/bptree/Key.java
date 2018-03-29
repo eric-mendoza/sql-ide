@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 public class Key implements Comparable<Key>{
 
-    private ArrayList<Record<?>> records;
+    private ArrayList<Record> records;
 
     public Key() {
         records = new ArrayList<>();

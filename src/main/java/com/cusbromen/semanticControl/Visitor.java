@@ -260,7 +260,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     /** 'SHOW' 'TABLES' ';' */
     @Override
     public String visitShow_tables(SqlParser.Show_tablesContext ctx) {
-        String returnedVal = symbolTable.showTables(dbInUse);
+        String returnedVal = symbolTable.showTables();
 
         if (returnedVal.equals("0")) {
             semanticErrorsList.add("Error: You haven't selected a DB yet, can't show any tables. Line: " + ctx.start.getLine());
@@ -274,6 +274,23 @@ public class Visitor extends SqlBaseVisitor<String> {
     /** 'SHOW' 'COLUMNS' 'FROM' ID */
     @Override
     public String visitShow_cols_from(SqlParser.Show_cols_fromContext ctx) {
+        // Verify if we are using a DB
+        if (dbInUse != null){
+            String idTable = ctx.ID().getSymbol().getText();
+            String result = symbolTable.showColumns(idTable);
+
+            if (result.equals("0")) {
+                semanticErrorsList.add("Error: Can't showo columns, table <strong>" + idTable + "</strong> doesn't exists. Line: " + ctx.start.getLine());
+            } else {
+                successMessages.add("Successfull operation. <strong>SHOW COLUMNS</strong> in table " + idTable + ": " + result + "<br>");
+            }
+
+        } else {
+            semanticErrorsList.add("Error: You haven't selected a DB yet, can't show column. Line: " + ctx.start.getLine());
+        }
+
+
+
         return super.visitShow_cols_from(ctx);
     }
 
