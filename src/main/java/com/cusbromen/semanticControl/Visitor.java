@@ -100,10 +100,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         JSONObject db = symbolTable.getDb(dbId, jsonParser);
         Set<String> tableNames = db.keySet();
         JSONObject table;
-        Long records = 0L;
+        Integer records = 0;
         for (String tableId : tableNames) {
             table = (JSONObject) db.get(tableId);
-            records += (Long) table.get("noRecords");
+            records += ((Number) table.get("noRecords")).intValue();
         }
 
         // Warning message TODO: This message has to be displayed on the gui, use the delete input function
