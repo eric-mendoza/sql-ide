@@ -18,7 +18,7 @@ import java.util.Set;
 
 
 @SuppressWarnings("unchecked") // JSON's fault
-public class SymbolTableHashMap implements SymbolTable{
+public class SymbolTableHashMap {
     private JSONObject metadata, dbInUseMetadata;
     private String dbsJsonPath, dbInUseId;
     private List<String> verboseParser;
@@ -50,27 +50,27 @@ public class SymbolTableHashMap implements SymbolTable{
     }
 
     // TODO Verify that currentDB isnt null before coming here (Also use the variable with the name of the db in use)
-    public String showTables(String currentDb) {
+    public String showTables() {
         verboseParser.add("Will try to show tables!");
 
-        if (currentDb != null){
+        if (dbInUseId != null){
 
             try {
                 Set<?> keys = dbInUseMetadata.keySet();
                 String tableList = "";
 
-                verboseParser.add(">> Finding keys for tables in database " + currentDb + ".");
+                verboseParser.add(">> Finding keys for tables in database " + dbInUseId + ".");
 
                 for (Object key : keys) {
                     tableList = tableList + "*\t" + key.toString() + "<br>";
                 }
 
-                verboseParser.add(">> Found keys for tables in " + currentDb + "! " + tableList + ".");
+                verboseParser.add(">> Found keys for tables in " + dbInUseId + "! " + tableList + ".");
 
                 return tableList;
 
             } catch (Exception e) {
-                verboseParser.add(">> Failed in finding keys for tables in database " + currentDb);
+                verboseParser.add(">> Failed in finding keys for tables in database " + dbInUseId);
                 e.printStackTrace(); return "0";
             }
         } else {
@@ -181,7 +181,6 @@ public class SymbolTableHashMap implements SymbolTable{
      * @param id is the name of the new db
      * @return 0: Database Created, 1: Database name is already in use
      */
-    @Override
     public int createDb(String id) {
         verboseParser.add(">> Will try to create metadata for database " + id);
         // Try to open the master file (dbs.json) on metadata directory
@@ -232,7 +231,6 @@ public class SymbolTableHashMap implements SymbolTable{
      * @param newName the newName for the db
      * @return 0: Database rename successful, 1: oldName db doesn't exists, 2: newName db already exists
      */
-    @Override
     public int renameDb(String oldName, String newName) {
         verboseParser.add(">> Will try to rename database " + oldName + " in metadata!");
         // Verify if the target DB exists
@@ -352,7 +350,6 @@ public class SymbolTableHashMap implements SymbolTable{
      * Verifies if a db exists
      * @param id the db
      */
-    @Override
     public boolean dbExists(String id) {
         Object db = metadata.get(id);
         if (db == null) return false;
@@ -433,5 +430,42 @@ public class SymbolTableHashMap implements SymbolTable{
             e.printStackTrace();
         }
 
+    }
+
+    /**
+     * Show the columns of a specified table
+     * @param idTable the target table
+     * @return Columns and props in String, 0: if table doesn't exists
+     */
+    public String showColumns(String idTable) {
+        // See if table exists
+        Object tableObject = dbInUseMetadata.get(idTable);
+        if (tableObject != null){
+            String result = "";
+            JSONObject table = (JSONObject) tableObject;
+            JSONObject columns = (JSONObject) table.get("columns");
+            Set<String> columnNames = columns.keySet();
+            String type;
+            Object constraintObject;
+            JSONObject column;
+            for (String columnId : columnNames) {
+                // Print name
+                result += "<br>*    " + columnId + ": ";
+
+                // Type
+                column = (JSONObject) columns.get(columnId);  // Get column props
+                type = (String) column.get("type");
+                result += "Type: " + type;
+
+                constraintObject = column.get("constraint");
+                if (constraintObject != null){
+                    result += ", Column Constraint: " + (String) constraintObject;
+                }
+            }
+
+            return result;
+        } else {
+            return "0";
+        }
     }
 }

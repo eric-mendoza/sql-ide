@@ -13,7 +13,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        CharStream charStream = CharStreams.fromString("DROP DATABASE eliminar;");
+        CharStream charStream = CharStreams.fromString("SHOW COLUMNS FROM pruebaConexion223;");
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 
