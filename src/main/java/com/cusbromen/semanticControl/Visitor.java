@@ -1,6 +1,12 @@
 package com.cusbromen.semanticControl;
 import com.cusbromen.antlr.SqlBaseVisitor;
 import com.cusbromen.antlr.SqlParser;
+import com.vaadin.icons.VaadinIcons;
+import com.vaadin.server.Page;
+import com.vaadin.server.Sizeable;
+import com.vaadin.shared.Position;
+import com.vaadin.shared.ui.ContentMode;
+import com.vaadin.ui.*;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -22,6 +28,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     private SymbolTableHashMap symbolTable;
     private String lastDbUsedPath = "metadata/lastDbUsed";
     private boolean syntaxError;
+    private Layout layout;
 
     public Visitor() {
         this.semanticErrorsList = new ArrayList<>();
@@ -100,22 +107,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
 
         // Warning message TODO: This message has to be displayed on the gui, use the delete input function
-        System.out.println("Are you sure you want to delete database '" + dbId + "' which contains '" + records + "' records? (y/n)");
-        boolean delete = getMessageAnswer();
+        dropConfirmationDialog(dbId, records);
 
-        if (delete){
-            // See if is dbInUse
-            if (dbInUse.equals(dbId)){
-                dbInUse = null;
-            }
-
-            // Delete from symbolTable
-            symbolTable.deleteDb(dbId);
-
-            successMessages.add("Database <strong>" + dbId + "</strong> was deleted</strong>.");
-        } else {
-            successMessages.add("Database <strong>" + dbId + "</strong> wasn't deleted</strong>.");
-        }
+        //System.out.println("Are you sure you want to delete database '" + dbId + "' which contains '" + records + "' records? (y/n)");
+        //boolean delete = getMessageAnswer();
 
         return "void";
     }
@@ -803,6 +798,66 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
     }
 
+    private void dropConfirmationDialog(String dbId, Long records) {
+        final Window confirmationWindow = new Window("Confirm action.");
+        confirmationWindow.setHeight(25.0f, Sizeable.Unit.PERCENTAGE);
+        confirmationWindow.setWidth(40.0f, Sizeable.Unit.PERCENTAGE);
+        confirmationWindow.center();
+        confirmationWindow.setResizable(false);
+
+        Label infoLbl = new Label("Are you sure you want to delete database <strong>" + dbId + "</strong> which contains <strong>" + records + "</strong> records?", ContentMode.HTML);
+        infoLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
+
+        final VerticalLayout confVLayout = new VerticalLayout();
+        confVLayout.setSizeFull();
+        confVLayout.addComponent(infoLbl);
+        confVLayout.setSpacing(true);
+
+        // Confirmation buttons
+        Button confirmBtn = new Button("Drop database");
+        confirmBtn.setIcon(VaadinIcons.CHECK);
+        confirmBtn.setSizeFull();
+
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setIcon(VaadinIcons.CLOSE);
+        cancelBtn.setSizeFull();
+
+        confirmBtn.addClickListener(event -> {
+            // See if is dbInUse
+            if (dbInUse.equals(dbId)){
+                dbInUse = null;
+            }
+
+            // Delete from symbolTable
+            symbolTable.deleteDb(dbId);
+
+            successMessages.add("Database <strong>" + dbId + "</strong> was deleted</strong>.");
+            Notification notification = new Notification("Success!", "Deleted database " + dbId);
+            notification.setDelayMsec(2000);
+            notification.setPosition(Position.TOP_CENTER);
+            notification.show(Page.getCurrent());
+
+            layout.getUI().getUI().removeWindow(confirmationWindow);
+        });
+
+        cancelBtn.addClickListener(event -> {
+            Notification notification = new Notification("Canceled operation", "Alright boss!");
+            notification.setDelayMsec(2000);
+            notification.setPosition(Position.TOP_CENTER);
+            notification.show(Page.getCurrent());
+            layout.getUI().getUI().removeWindow(confirmationWindow);
+        });
+
+        final HorizontalLayout confBtnsLayout = new HorizontalLayout();
+        confBtnsLayout.setSizeFull();
+        confBtnsLayout.addComponents(cancelBtn, confirmBtn);
+        confVLayout.addComponent(confBtnsLayout);
+
+        confirmationWindow.setContent(confVLayout);
+
+        layout.getUI().getUI().addWindow(confirmationWindow);
+    }
+
     public void setDbInUse(String db) {
         dbInUse = db;
     }
@@ -817,6 +872,10 @@ public class Visitor extends SqlBaseVisitor<String> {
 
     public void addToVerboseParser() {
         verboseParser.addAll(symbolTable.getVerboseParser());
+    }
+
+    public void setLayout(Layout layout) {
+        this.layout = layout;
     }
 
     public List<String> getVerboseParser() { return verboseParser;}

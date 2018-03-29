@@ -153,6 +153,7 @@ public class MyUI extends UI {
         /* button listeners */
         compileBtn.addClickListener(e -> {
             visitor = new Visitor();
+            visitor.setLayout(hLayout);
             if (editorInput != null) {
                 setFocusedComponent(consolePanel);
                 // Create visitor
