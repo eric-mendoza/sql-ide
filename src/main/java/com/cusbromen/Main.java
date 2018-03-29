@@ -13,7 +13,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        CharStream charStream = CharStreams.fromString("DROP TABLE clase;");
+        CharStream charStream = CharStreams.fromString("CREATE DATABASE prueba; USE DATABASE prueba; CREATE TABLE id(popo INT); DROP DATABASE prueba;");
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 

@@ -195,7 +195,7 @@ public class SymbolTableHashMap {
                 verboseParser.add(">> Writing changes to file " + dbsJsonPath);
                 PrintWriter writer2 = new PrintWriter(dbsJsonPath, "UTF-8");
                 JSONObject table = (JSONObject) metadata.get(dbInUseId);
-                Integer noTables = (Integer) table.get("noTables");
+                Integer noTables = ((Number) table.get("noTables")).intValue();
                 noTables++;
                 table.put("noTables", noTables);
 
