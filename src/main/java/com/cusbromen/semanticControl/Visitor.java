@@ -798,7 +798,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
     }
 
-    private void dropConfirmationDialog(String dbId, Long records) {
+    private void dropConfirmationDialog(String dbId, Integer records) {
         final Window confirmationWindow = new Window("Confirm action.");
         confirmationWindow.setHeight(25.0f, Sizeable.Unit.PERCENTAGE);
         confirmationWindow.setWidth(40.0f, Sizeable.Unit.PERCENTAGE);
@@ -838,6 +838,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             notification.show(Page.getCurrent());
 
             layout.getUI().getUI().removeWindow(confirmationWindow);
+            Page.getCurrent().reload();
         });
 
         cancelBtn.addClickListener(event -> {
@@ -876,6 +877,11 @@ public class Visitor extends SqlBaseVisitor<String> {
 
     public void setLayout(Layout layout) {
         this.layout = layout;
+    }
+
+    public void refreshInfoLists() {
+        this.semanticErrorsList.clear();
+        this.verboseParser.clear();
     }
 
     public List<String> getVerboseParser() { return verboseParser;}
