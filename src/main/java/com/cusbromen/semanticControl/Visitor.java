@@ -7,6 +7,7 @@ import com.vaadin.server.Sizeable;
 import com.vaadin.shared.Position;
 import com.vaadin.shared.ui.ContentMode;
 import com.vaadin.ui.*;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -22,12 +23,13 @@ import java.util.Set;
 public class Visitor extends SqlBaseVisitor<String> {
     private List<String> semanticErrorsList, successMessages, verboseParser; // list for semantic errors found
     private JSONParser jsonParser;
+    private JSONArray newConditionPostFix;
     private JSONObject newTable, newColumns, newColumn, newConstraints;  // This is going to be used to construct a table step by step
     private String dbsJsonPath, dbInUse, newTableName, newColumnName, newTypeColumn;
     private ArrayList<String[]> newReferencedTables; // it's going to be used to save referenced tables temporary
     private SymbolTableHashMap symbolTable;
     private String lastDbUsedPath = "metadata/lastDbUsed";
-    private boolean syntaxError;
+    private boolean syntaxError, addingConstraint;
     private Layout layout;
 
     public Visitor() {
@@ -40,6 +42,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         dbInUse = loadLastUsedDb();
         symbolTable.readMetadata(dbsJsonPath, jsonParser, dbInUse);  // Load the metadata of dbs before working
         syntaxError = false;
+        addingConstraint = false;
 
         // TODO: Este mensaje tendrá que ser mostrado por la gui
         System.out.println("DB in use: " + getDbInUse());
@@ -69,6 +72,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         String newName = ctx.ID(1).getSymbol().getText();
 
         // TODO rename solo mueve el archivo de metadata, no el futuro Btree, hay que hacerlo recursivo para mover todos
+        //Verify if it's actual database
         int result = symbolTable.renameDb(oldName, newName);
 
         if (result == 1){
@@ -79,6 +83,20 @@ public class Visitor extends SqlBaseVisitor<String> {
         else if (result == 2){
             semanticErrorsList.add("Database <strong>" + newName + "</strong>  already exists. Line: " + ctx.start.getLine());
             return "error";
+        }
+        // verify if it was the actual db in use
+        if (oldName.equals(dbInUse)){
+            try {
+                dbInUse = newName;
+                symbolTable.loadDbMetadata(newName, jsonParser);
+                PrintWriter writer = new PrintWriter(lastDbUsedPath, "UTF-8");
+
+                // Write to file
+                writer.write(newName);
+                writer.close();
+            } catch (FileNotFoundException | UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
         }
 
         successMessages.add("Successfully renamed database <strong>" + oldName + "</strong> to <strong>" + newName + "</strong>.");
@@ -216,14 +234,13 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
     }
 
-    /** 'ALTER' 'TABLE' (alter_rename | alter_action) ';' */
+    /** 'ALTER' 'TABLE' ID (alter_rename | alter_action) ';' */
     @Override
     public String visitAlter_table(SqlParser.Alter_tableContext ctx) {
 
         if (ctx.alter_rename() != null){
-            String[] names = visit(ctx.alter_rename()).split(" ");
-            String oldName = names[0];
-            String newName = names[1];
+            String oldName = ctx.ID().getSymbol().getText();
+            String newName = visit(ctx.alter_rename());
 
             int renameResult = symbolTable.renameTable(dbInUse, oldName, newName);
 
@@ -238,9 +255,12 @@ public class Visitor extends SqlBaseVisitor<String> {
             }
 
         } else {
-            int alterTableResult = symbolTable.alterTable(dbInUse);
-
-
+            newTableName = ctx.ID().getSymbol().getText();
+            String result = visit(ctx.alter_action());
+            if (result.equals("error")) {
+                semanticErrorsList.add("Error: Couldn't alter table <strong>" + newTableName + "</strong>. Line: " + ctx.start.getLine());
+                return "error";
+            }
         }
 
         return "void";
@@ -290,7 +310,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
 
 
-        return super.visitDrop_table(ctx);
+        return "void";
     }
 
     /** 'SHOW' 'TABLES' ';' */
@@ -370,40 +390,141 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitCondition(ctx);
     }
 
-    /** ID 'RENAME' 'TO' ID */
+    /** 'RENAME' 'TO' ID */
     @Override
     public String visitAlter_rename(SqlParser.Alter_renameContext ctx) {
-        return ctx.ID(0).getSymbol().getText() + " " + ctx.ID(1).getSymbol().getText();
+        return ctx.ID().getSymbol().getText();
     }
 
-    /** ID action */
-    @Override
-    public String visitAlter_action(SqlParser.Alter_actionContext ctx) {
-        return super.visitAlter_action(ctx);
-    }
-
-    /** 'ADD' 'COLUMN' ID ('CONSTRAINT' c_constraint)* */
+    /** 'ADD' 'COLUMN' ID data_type constraint     */
     @Override
     public String visitAddColumn(SqlParser.AddColumnContext ctx) {
-        return super.visitAddColumn(ctx);
+        if (dbInUse != null){
+            newTable = symbolTable.getTable(newTableName);
+
+            // Load variables for creation
+            newColumns = (JSONObject) newTable.get("columns");
+            newConstraints = (JSONObject) newTable.get("constraints");
+
+            // Initialize new ones
+            newColumnName = ctx.ID().getSymbol().getText();
+            newColumn = new JSONObject();
+            newTypeColumn = visit(ctx.data_type());
+            newColumn.put("type", newTypeColumn);
+            newReferencedTables = new ArrayList<>();
+
+            // Make shure table doesn't exists already
+            if (newColumns.get(newColumnName) != null){
+                semanticErrorsList.add("Error: Couldn't create column. Column <strong>" + newColumnName + "</strong> already exists. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
+            // Analyze columns for the table and add them to newColumn and all the constraints too
+            String visit = "";
+            if (ctx.constraint() != null){
+                visit = visit(ctx.constraint());
+            }
+
+            if (visit.equals("error")) {
+                semanticErrorsList.add("Error: Couldn't create column <strong>" + newColumnName + "</strong>. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
+            // Add newColumn to newColumns
+            newColumns.put(newColumnName, newColumn);
+
+            int createTableResult = symbolTable.addConstraintsAndRefreshJson(newTableName, newReferencedTables);
+
+            if (createTableResult == 1) {
+                successMessages.add("Successfully created column <strong>" + newColumnName + "</strong>.");
+            } else if (createTableResult == 3) {
+                semanticErrorsList.add("Error: Two foreign keys have the same ID. Couldn't create column <strong>" + newColumnName + "</strong>. Line: " + ctx.start.getLine());
+            }
+            return "void";
+        } else {
+            semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't created. Line: " + ctx.start.getLine());
+            return "error";
+        }
     }
 
-    /** 'ADD' 'CONSTRAINT' c_constraint */
+    /** 'ADD' 'CONSTRAINT' constraint */
     @Override
     public String visitAddConstraint(SqlParser.AddConstraintContext ctx) {
-        return super.visitAddConstraint(ctx);
+        if (dbInUse != null){
+            addingConstraint = true;
+            newTable = symbolTable.getTable(newTableName);
+
+            // Load variables for creation
+            newColumns = (JSONObject) newTable.get("columns");
+            newConstraints = (JSONObject) newTable.get("constraints");
+
+            // Initialize new ones
+            newColumnName = null;
+            newColumn = null;
+            newTypeColumn = null;
+            newReferencedTables = new ArrayList<>();
+
+            // Analyze columns for the table and add them to newColumn and all the constraints too
+            String visit = visit(ctx.constraint());
+
+            if (visit.equals("error")) {
+                return "error";
+            }
+
+            int result = symbolTable.addConstraintsAndRefreshJson(newTableName, newReferencedTables);
+
+            if (result == 1) {
+                successMessages.add("Successfully created CONSTRAINT <strong>" + newColumnName + "</strong>.");
+            } else if (result == 3) {
+                semanticErrorsList.add("Error: Two foreign keys have the same ID. Couldn't create CONSTRAINT in table <strong>" + newTableName + "</strong>. Line: " + ctx.start.getLine());
+            }
+
+            addingConstraint = false;
+            return "void";
+        } else {
+            semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't created. Line: " + ctx.start.getLine());
+            return "error";
+        }
     }
 
     /** 'DROP' 'COLUMN' ID */
     @Override
     public String visitDropColumn(SqlParser.DropColumnContext ctx) {
-        return super.visitDropColumn(ctx);
+        String columnId = ctx.ID().getSymbol().getText();
+        int result = symbolTable.dropColumn(newTableName, columnId);
+        if (result == 0){
+            semanticErrorsList.add("Error: Table <strong>" + newTableName + "</strong> doesn't exists in DB in use. Line: " + ctx.start.getLine());
+            return "error";
+        } else if (result == 1){
+            semanticErrorsList.add("Error: You haven't selected a database yet. Line: " + ctx.start.getLine());
+            return "error";
+        } else if (result == 2){
+            semanticErrorsList.add("Error: You can't delete the column <strong>" + columnId + "</strong> because it's being used by a CONSTRAINT. Drop the constraint if you want to delete the column. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        successMessages.add("Successfull operation. <strong>DROP COLUMN</strong> in table " + newTableName + ".");
+        return "void";
     }
 
     /** 'DROP' 'CONSTRAINT' ID */
     @Override
     public String visitDropConstraint(SqlParser.DropConstraintContext ctx) {
-        return super.visitDropConstraint(ctx);
+        String constraintId = ctx.ID().getSymbol().getText();
+        int result = symbolTable.dropConstraint(newTableName, constraintId);
+        if (result == 0){
+            semanticErrorsList.add("Error: Constraint <strong>" + constraintId + "</strong> doesn't exists. Line: " + ctx.start.getLine());
+            return "error";
+        } else if (result == 1){
+            semanticErrorsList.add("Error: Table <strong>" + newTableName + "</strong> doesn't exists in DB in use. Line: " + ctx.start.getLine());
+            return "error";
+        } else if (result == 2){
+            semanticErrorsList.add("Error: You haven't selected a database yet. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        successMessages.add("Successfull operation. <strong>DROP CONSTRAINT</strong> in table " + newTableName + ".");
+        return "void";
     }
 
     /** '(' table_element (',' table_element)* ')' */
@@ -418,7 +539,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         return "void";
     }
 
-    /** ID data_type_def (column_constraint)? */
+    /** ID data_type_def constraint */
     @Override
     public String visitTable_element(SqlParser.Table_elementContext ctx) {
         // Get column name
@@ -439,26 +560,29 @@ public class Visitor extends SqlBaseVisitor<String> {
 
         newColumn.put("type", newTypeColumn);
 
-        SqlParser.Column_constraintContext constraint = ctx.column_constraint();
-        if (constraint != null){
-            newColumn.put("constraint", visit(constraint));
-        }
+        // Visit constraints
+        result = visit(ctx.constraint());
+        if (result.equals("error")) return "error";  // Stop execution
 
         // Add newColumn to newColumns
         newColumns.put(newColumnName, newColumn);
         return "void";
     }
 
-    /** data_type ('CONSTRAINT' c_constraint)? */
+    /** data_type (length_constraint)? */
     @Override
     public String visitData_type_def(SqlParser.Data_type_defContext ctx) {
         // Get column type
         newTypeColumn = visit(ctx.data_type());
 
-        // Analyze table constraints
-        SqlParser.C_constraintContext tableConstraint = ctx.c_constraint();
-        if (tableConstraint != null){
-            String result = visit(tableConstraint);  // this is going to add the table constraints
+        // If is type CHAR fix a default size
+        if (newTypeColumn.equals("CHAR")){
+            newColumn.put("length", 1);
+        }
+
+        // Analyze constraint
+        if (ctx.length_constraint() != null){
+            String result = visit(ctx.length_constraint());  // this is going to add the column constraints
             if (result.equals("error")){
                 return "error";  // Stop all the execution
             }
@@ -472,21 +596,33 @@ public class Visitor extends SqlBaseVisitor<String> {
         return ctx.start.getText();
     }
 
-    /** keys_constraint | length_constraint*/
+    /** ((column_constraint)? ('CONSTRAINT' keys_constraint)? | ('CONSTRAINT' keys_constraint)? (column_constraint)?)*/
     @Override
-    public String visitC_constraint(SqlParser.C_constraintContext ctx) {
-        SqlParser.Keys_constraintContext keys_constraintContext = ctx.keys_constraint();
-        if (keys_constraintContext != null){
-            return visit(keys_constraintContext);
-        } else {
-            return visit(ctx.length_constraint());
+    public String visitConstraint(SqlParser.ConstraintContext ctx) {
+        // Visit children
+        if (ctx.column_constraint() != null){
+            String result = visit(ctx.column_constraint());
+            if (result.equals("error")) return "error";
         }
+
+        if (ctx.keys_constraint() != null){
+            String result = visit(ctx.keys_constraint());
+            if (result.equals("error")) return "error";
+        }
+
+        return "void";
     }
 
     /** 'NOT' 'NULL' */
     @Override
     public String visitColumn_constraint(SqlParser.Column_constraintContext ctx) {
-        return "NOT NULL";
+        // Add constraint to column
+        if (!addingConstraint) newColumn.put("nullable", "false");
+        else {
+            semanticErrorsList.add("Error: You can't apply NOT NULL to a table. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
+        return "void";
     }
 
     /** ID 'PRIMARY' 'KEY' ('(' ID (',' ID)* ')')* */
@@ -544,6 +680,14 @@ public class Visitor extends SqlBaseVisitor<String> {
         List<TerminalNode> ids = ctx.ID();
         List<TerminalNode> referencesIds = ctx.foreignKeyReferences().ID();
 
+        // If we are just adding a Constraint, it's a MUST to specify the column names
+        if (addingConstraint){
+            if (ids.size() <= 1){
+                semanticErrorsList.add("Error: Couldn't add foreign key. You must specify which local columns you are trying to referenc, eg: 'FK_name FOREIGN KEY (localColumn) REFERENCES...'. Line: " + ctx.getStart().getLine());
+                return "error";
+            }
+        }
+
         // Analyse the constraint name, it should begin with FK_ and
         String constraintId = ids.get(0).getSymbol().getText();
         boolean correctName = constraintId.startsWith("FK_");
@@ -599,7 +743,7 @@ public class Visitor extends SqlBaseVisitor<String> {
                     referencedColumn = referencesIds.get(i).getSymbol().getText();
 
                     // See if the column exists in actual table
-                    usingActualColumn = newColumnName.equals(column);
+                    usingActualColumn = column.equals(newColumnName);
                     if ((newColumns.get(column) == null) && !usingActualColumn){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY. The column <strong>" + column +"</strong> doesn't exists in table <strong>" + newTableName + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";
@@ -642,7 +786,7 @@ public class Visitor extends SqlBaseVisitor<String> {
                     referencedColumn = (String) referencedPrimaryKey.get(i - 1);
 
                     // See if the column exists in actual table
-                    usingActualColumn = newColumnName.equals(column);
+                    usingActualColumn = column.equals(newColumnName);
                     if ((newColumns.get(column) == null) && !usingActualColumn){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY. The column <strong>" + column +"</strong> doesn't exists in table <strong>" + newTableName + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";
@@ -745,19 +889,195 @@ public class Visitor extends SqlBaseVisitor<String> {
     /** ID 'CHECK' '(' check_exp ')' */
     @Override
     public String visitCheck(SqlParser.CheckContext ctx) {
-        return super.visitCheck(ctx);
+        String constraintId = ctx.ID().getSymbol().getText();
+
+        if (!constraintId.startsWith("CH_")){
+            semanticErrorsList.add("Error: By convention, the primary key of a table should begin with <strong>CH_</strong>. You can't use <strong>" + constraintId + "</strong>. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
+
+        // Verify if constraint wasn't declared before
+        if (newConstraints.get(constraintId) != null) {
+            semanticErrorsList.add("Error: There are two constraints with the same id <strong>" + constraintId +"</strong>. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
+
+        // Create array to save condition in postfix
+        newConditionPostFix = new JSONArray();
+        String conditionResult = visit(ctx.check_exp());
+
+        if (conditionResult.equals("error")){
+            return "error";
+        }
+
+        // Add check constraint to constraints of table
+        newConstraints.put(constraintId, newConditionPostFix);
+        return "void";
     }
 
-    /** (ID | NUMBER) (logic_exp | rel_exp) (ID | NUMBER) */
+    /** NOT check_exp */
     @Override
-    public String visitCheck_exp(SqlParser.Check_expContext ctx) {
-        return super.visitCheck_exp(ctx);
+    public String visitNotExpr(SqlParser.NotExprContext ctx) {
+        // First visit check_exp
+        String result = visit(ctx.check_exp());
+        if (result.equals("error")) return "error";
+
+        // Add NOT operator
+        newConditionPostFix.add("NOT");
+
+        return "void";
+    }
+
+    /** check_exp OR check_exp  */
+    @Override
+    public String visitOrExpr(SqlParser.OrExprContext ctx) {
+        // Visit subexpr1
+        String result = visit(ctx.check_exp(0));
+        if (result.equals("error")) return "error";
+
+        // Visit subexpr2
+        result = visit(ctx.check_exp(1));
+        if (result.equals("error")) return "error";
+
+        // Add OR operator
+        newConditionPostFix.add("OR");
+        return "void";
+    }
+
+    /** op1=(ID|FLOAT) rel_exp op2=(ID|FLOAT) */
+    @Override
+    public String visitRelExpr(SqlParser.RelExprContext ctx) {
+        // Get operator symbol
+        String symbol = ctx.rel_exp().getText();
+
+        // Get operator 1
+        Token op1Ctx = ctx.op1;
+        String op1Type, op2Type, op1, op2;
+        if (op1Ctx.getType() == SqlParser.ID){
+            // It's an ID
+            op1 = op1Ctx.getText();
+
+            // Verify that column exists and get type
+            Object columnObject = newColumns.get(op1);
+            if (columnObject != null){
+                op1Type = (String) ((JSONObject) columnObject).get("type");
+            }
+
+            else if (newColumnName.equals(op1)){
+                op1Type = newTypeColumn;
+            }
+
+            else {
+                semanticErrorsList.add("Error: Couldn't create CONSTRAINT CHECK, the column <strong>" + op1 +"</strong> doesn't exists. Line: " + ctx.getStart().getLine());
+                return "error";
+            }
+
+            if (op1Type.equals("INT") || op1Type.equals("FLOAT")){
+                op1Type = "NUM";
+            }
+
+
+            // Add to postfix
+            newConditionPostFix.add(op1);
+        } else {
+            // TODO verificar que reconoce correctamente si es FLOAT/NUMBER/INT
+            // It's a number
+            Float number = Float.valueOf(op1Ctx.getText());
+            op1 = String.valueOf(number);
+            op1Type = "NUM";
+
+            // Add to postfix
+            newConditionPostFix.add(number);
+        }
+
+        Token op2Ctx = ctx.op2;
+        if (SqlParser.ID == op2Ctx.getType()){
+            // It's an ID
+            op2 = op2Ctx.getText();
+
+            // Verify that column exists and get type
+            Object columnObject = newColumns.get(op2);
+            if (columnObject != null){
+                op2Type = (String) ((JSONObject) columnObject).get("type");
+            }
+
+            else if (newColumnName.equals(op2)){
+                op2Type = newTypeColumn;
+            }
+
+            else {
+                semanticErrorsList.add("Error: Could not create CONSTRAINT CHECK, the column <strong>" + op2 +"</strong> doesn't exists. Line: " + ctx.getStart().getLine());
+                return "error";
+            }
+
+            if (op1Type.equals("INT") || op1Type.equals("FLOAT")){
+                op2Type = "NUM";
+            }
+
+            // Add to postfix
+            newConditionPostFix.add(op2);
+        } else {
+            // It's a number
+            Float number = Float.valueOf(op2Ctx.getText());
+            op2 = String.valueOf(number);
+            op2Type = "NUM";
+
+            // Add to postfix
+            newConditionPostFix.add(number);
+        }
+
+        // Verify if types are comparable (They have to have the same type)
+        if (!op1Type.equals(op2Type)){
+            semanticErrorsList.add("Error: Could not create CONSTRAINT CHECK, the types aren't comparable in <strong>" + op1 + "(" + op1Type +  ")</strong> " + symbol + " <strong>" + op2 + "(" + op2Type +  ")</strong>. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
+
+        // Add symbol to postfix
+        newConditionPostFix.add(symbol);
+        return "void";
+    }
+
+    /** '(' check_exp ')'  */
+    @Override
+    public String visitParenExpr(SqlParser.ParenExprContext ctx) {
+        return visit(ctx.check_exp());
+    }
+
+    /** check_exp AND check_exp */
+    @Override
+    public String visitAndExpr(SqlParser.AndExprContext ctx) {
+        // Visit subexpr1
+        String result = visit(ctx.check_exp(0));
+        if (result.equals("error")) return "error";
+
+        // Visit subexpr2
+        result = visit(ctx.check_exp(1));
+        if (result.equals("error")) return "error";
+
+        // Add AND operator
+        newConditionPostFix.add("AND");
+        return "void";
     }
 
     /** '(' NUMBER ')' */
     @Override
     public String visitLength_constraint(SqlParser.Length_constraintContext ctx) {
-        return ctx.NUMBER().getSymbol().getText();
+        // Verify that column type is CHAR
+        if (!newTypeColumn.equals("CHAR")){
+            semanticErrorsList.add("Error: Column <strong>" + newColumnName + "</strong> can't have length. Only CHAR data type columns can. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
+
+        Integer length = Integer.valueOf(ctx.NUMBER().getSymbol().getText());
+
+        // Make shure that size is bigger than 0
+        if (length < 1){
+            semanticErrorsList.add("Error: Column <strong>" + newColumnName + "</strong> length is invalid. It has to be bigger than 1. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
+
+        newColumn.put("length", length);
+        return "void";
     }
 
     public List<String> getSemanticErrorsList() {
@@ -817,10 +1137,12 @@ public class Visitor extends SqlBaseVisitor<String> {
         Button confirmBtn = new Button("Drop database");
         confirmBtn.setIcon(VaadinIcons.CHECK);
         confirmBtn.setSizeFull();
+        confirmBtn.setStyleName("danger");
 
         Button cancelBtn = new Button("Cancel");
         cancelBtn.setIcon(VaadinIcons.CLOSE);
         cancelBtn.setSizeFull();
+        cancelBtn.setStyleName("primary");
 
         confirmBtn.addClickListener(event -> {
             // See if is dbInUse
@@ -882,6 +1204,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     public void refreshInfoLists() {
         this.semanticErrorsList.clear();
         this.verboseParser.clear();
+        this.successMessages.clear();
     }
 
     public List<String> getVerboseParser() { return verboseParser;}

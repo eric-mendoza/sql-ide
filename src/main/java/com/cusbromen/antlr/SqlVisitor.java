@@ -119,35 +119,29 @@ public interface SqlVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitAlter_rename(SqlParser.Alter_renameContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link SqlParser#alter_action}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitAlter_action(SqlParser.Alter_actionContext ctx);
-	/**
 	 * Visit a parse tree produced by the {@code addColumn}
-	 * labeled alternative in {@link SqlParser#action}.
+	 * labeled alternative in {@link SqlParser#alter_action}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitAddColumn(SqlParser.AddColumnContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code addConstraint}
-	 * labeled alternative in {@link SqlParser#action}.
+	 * labeled alternative in {@link SqlParser#alter_action}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitAddConstraint(SqlParser.AddConstraintContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code dropColumn}
-	 * labeled alternative in {@link SqlParser#action}.
+	 * labeled alternative in {@link SqlParser#alter_action}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitDropColumn(SqlParser.DropColumnContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code dropConstraint}
-	 * labeled alternative in {@link SqlParser#action}.
+	 * labeled alternative in {@link SqlParser#alter_action}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
@@ -183,11 +177,11 @@ public interface SqlVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitColumn_constraint(SqlParser.Column_constraintContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link SqlParser#c_constraint}.
+	 * Visit a parse tree produced by {@link SqlParser#constraint}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitC_constraint(SqlParser.C_constraintContext ctx);
+	T visitConstraint(SqlParser.ConstraintContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code primaryKey}
 	 * labeled alternative in {@link SqlParser#keys_constraint}.
@@ -216,17 +210,40 @@ public interface SqlVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitForeignKeyReferences(SqlParser.ForeignKeyReferencesContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link SqlParser#check_exp}.
+	 * Visit a parse tree produced by the {@code notExpr}
+	 * labeled alternative in {@link SqlParser#check_exp}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCheck_exp(SqlParser.Check_expContext ctx);
+	T visitNotExpr(SqlParser.NotExprContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link SqlParser#logic_exp}.
+	 * Visit a parse tree produced by the {@code orExpr}
+	 * labeled alternative in {@link SqlParser#check_exp}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitLogic_exp(SqlParser.Logic_expContext ctx);
+	T visitOrExpr(SqlParser.OrExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code relExpr}
+	 * labeled alternative in {@link SqlParser#check_exp}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitRelExpr(SqlParser.RelExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code parenExpr}
+	 * labeled alternative in {@link SqlParser#check_exp}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitParenExpr(SqlParser.ParenExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code andExpr}
+	 * labeled alternative in {@link SqlParser#check_exp}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAndExpr(SqlParser.AndExprContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link SqlParser#rel_exp}.
 	 * @param ctx the parse tree

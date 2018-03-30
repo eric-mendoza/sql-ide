@@ -138,21 +138,25 @@ public class MyUI extends UI {
         compileBtn.setIcon(VaadinIcons.PLAY);
         compileBtn.setDescription("Execute query");
         compileBtn.setSizeFull();
+        compileBtn.setStyleName("primary");
 
         Button clearEditorBtn = new Button();
         clearEditorBtn.setIcon(VaadinIcons.TRASH);
         clearEditorBtn.setDescription("Clear editor");
         clearEditorBtn.setSizeFull();
+        clearEditorBtn.setStyleName("danger");
 
         Button clearConsoleBtn = new Button();
         clearConsoleBtn.setIcon(VaadinIcons.DEL);
         clearConsoleBtn.setDescription("Clear console");
         clearConsoleBtn.setSizeFull();
+        clearConsoleBtn.setStyleName("danger");
 
         Button verboseBtn = new Button();
         verboseBtn.setIcon(VaadinIcons.BUG);
         verboseBtn.setDescription("Verbose script");
         verboseBtn.setSizeFull();
+        verboseBtn.setStyleName("friendly");
 
         /* button listeners */
         compileBtn.addClickListener(e -> {
@@ -196,7 +200,7 @@ public class MyUI extends UI {
 
                 if (!visitor.getVerboseParser().isEmpty() && verboseMode) {
                     for (String verbose : visitor.getVerboseParser()) {
-                        Label errLbl = new Label(verbose, ContentMode.HTML);
+                        Label errLbl = new Label("<font color=\"DodgerBlue\">" + verbose + "</font>", ContentMode.HTML);
                         errLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
                         consolePanelLayout.addComponent(errLbl);
                     }
@@ -205,7 +209,7 @@ public class MyUI extends UI {
                 // error list
                 if (!errList.isEmpty()) {
                     for (String error : errList) {
-                        Label errLbl = new Label("<strong>ERROR>> </strong>" + error, ContentMode.HTML);
+                        Label errLbl = new Label("<font color=\"Tomato\"><strong>ERROR>> </strong>" + error + "</font>", ContentMode.HTML);
                         errLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
                         consolePanelLayout.addComponent(errLbl);
                     }
@@ -228,6 +232,7 @@ public class MyUI extends UI {
                 // refresh dbs filesystem
                 readMetadataFromJSON();
                 updateDbsTree();
+                visitor.refreshInfoLists();
 
                 dbsTree.select("DB: " + visitor.getDbInUse());
 
@@ -266,7 +271,6 @@ public class MyUI extends UI {
         });
 
         verboseBtn.addClickListener(event -> {
-            // TODO add flag or something to verbose
             String onOff = "";
             if (!verboseMode) {
                 verboseMode = true;
@@ -364,7 +368,6 @@ public class MyUI extends UI {
         inMemoryDataProvider.refreshAll();
 
         dbsTreeData.addItem(null, "DBMS Current databases");
-        dbsTree.expand("DBMS Current databases");
 
         Set<?> keys = metadata.keySet();
 
@@ -386,7 +389,6 @@ public class MyUI extends UI {
             } catch (Exception e) { }
 
             dbsTree.addItemClickListener(event -> {
-                System.out.println(event.getItem().toString());
                 if (event.getItem().toString().contains("DB: ")) {
                     String dbName = event.getItem().toString().replace("DB: ", "");
                     visitor.setDbInUse(dbName);
@@ -400,6 +402,7 @@ public class MyUI extends UI {
         }
 
         inMemoryDataProvider.refreshAll();
+        dbsTree.expand("DBMS Current databases");
     }
 
     private void readMetadataFromJSON() {
