@@ -8,8 +8,8 @@ public class FloatRecord implements Record {
 
     private Double val;
 
-    public FloatRecord() {
-
+    public FloatRecord(Double val) {
+        this.val = val;
     }
 
     FloatRecord(RandomAccessFile file) throws IOException{

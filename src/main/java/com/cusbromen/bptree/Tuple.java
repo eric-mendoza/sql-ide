@@ -7,8 +7,16 @@ import java.util.ArrayList;
 public class Tuple {
     protected ArrayList<Record> records;
 
+    /**
+     * Default constructor
+     */
     public Tuple() {
         records = new ArrayList<>();
+    }
+
+
+    public Tuple(ArrayList<Type> types, RandomAccessFile file) throws IOException{
+        readFromFile(types, file);
     }
 
     /**
@@ -22,7 +30,14 @@ public class Tuple {
         }
     }
 
+    /**
+     * Method to read the tuple from file
+     * @param types types of columns
+     * @param file file to read from
+     * @throws IOException if there is some problem with file
+     */
     public void readFromFile(ArrayList<Type> types, RandomAccessFile file) throws IOException{
+        records = new ArrayList<>();
         for (Type type : types) {
             switch (type) {
                 case INT: {

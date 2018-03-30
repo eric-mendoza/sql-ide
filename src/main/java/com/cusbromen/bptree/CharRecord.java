@@ -5,11 +5,11 @@ import java.io.RandomAccessFile;
 
 public class CharRecord implements Record {
 
-    private String val;
+    private char[] val;
 
 
-    public CharRecord() {
-
+    public CharRecord(char[] val) {
+        this.val = val;
     }
 
     CharRecord(RandomAccessFile file) throws IOException{
@@ -19,16 +19,31 @@ public class CharRecord implements Record {
     @Override
     public int compareTo(Record o) {
         CharRecord rec = (CharRecord) o;
-        return val.compareTo(rec.val);
+        for (int i = 0; i < val.length && i < rec.val.length; ++i){
+            if (val[i] < rec.val[i])
+                return -1;
+            if (val[i] > rec.val[i])
+                return 1;
+        }
+        if (val.length < rec.val.length)
+            return -1;
+        else if(val.length > rec.val.length)
+            return 1;
+        return 0;
     }
 
     @Override
     public void writeToFile(RandomAccessFile file) throws IOException{
-        file.writeUTF(val);
+        file.writeInt(val.length);
+        file.writeChars(new String(val));
     }
 
     @Override
     public void readFromFile(RandomAccessFile file) throws IOException{
-        val = file.readUTF();
+        int size = file.readInt();
+        val = new char[size];
+        for (int i = 0; i < size; i++) {
+            val[i] = file.readChar();
+        }
     }
 }

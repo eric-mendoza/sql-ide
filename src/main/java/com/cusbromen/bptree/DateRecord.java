@@ -9,8 +9,8 @@ public class DateRecord implements Record {
 
     private Date val;
 
-    public DateRecord() {
-
+    public DateRecord(Date val) {
+        this.val = val;
     }
 
     DateRecord(RandomAccessFile file) throws IOException {

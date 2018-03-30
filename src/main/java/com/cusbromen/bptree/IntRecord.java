@@ -7,8 +7,8 @@ public class IntRecord implements Record {
 
     private Integer val;
 
-    public IntRecord() {
-
+    public IntRecord(int val) {
+        this.val = val;
     }
 
     IntRecord(RandomAccessFile file) throws IOException{

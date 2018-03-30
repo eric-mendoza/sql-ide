@@ -14,9 +14,18 @@ import java.util.ArrayList;
 public class BpTree {
 
     private RandomAccessFile file;
-    private ArrayList<Type> types;
-    private int degree;
-    private int root;
+
+    // Disk block size
+    private int blockSize;
+
+    // Pointer to tree root
+    private long root;
+
+    // Types of the table
+    private ArrayList<Type> recordTypes;
+
+    // Types of the key
+    private ArrayList<Type> keyTypes;
 
 
     /**
@@ -24,10 +33,26 @@ public class BpTree {
      * characteristics from header
      * @param fileName name of the file
      */
-    public BpTree(String fileName) {
+    public BpTree(String fileName) throws IOException{
         File f = new File(fileName);
-        if (f.exists()) {
-
+        if (f.exists() && f.isFile()) {
+            file = new RandomAccessFile(fileName, "rw");
+            keyTypes = new ArrayList<>();
+            recordTypes = new ArrayList<>();
+            // Retrieve the header
+            blockSize = file.readInt();
+            int size = file.readInt();
+            for (int i = 0; i < size; i++) {
+                keyTypes.add(Type.fromInt(file.readInt()));
+            }
+            size = file.readInt();
+            for (int i = 0; i < size; i++) {
+                recordTypes.add(Type.fromInt(file.readInt()));
+            }
+            root = file.readLong();
+            file.seek(root);
+        }else {
+            throw new FileNotFoundException(fileName + ": No such file");
         }
     }
 
@@ -36,12 +61,14 @@ public class BpTree {
      * Constructor with Random AccessFile
      * creates the header in the file
      * @param file File where B+ tree is stored
-     * @param degree Degree of the BpTree, it must match
-     *               the block size for efficient storage
+     * @param blockSize blockSize of the BpTree, it must match
+     *                  the of the disk for efficient storage
      */
-    public BpTree(RandomAccessFile file, int degree) throws IOException{
+    public BpTree(RandomAccessFile file, ArrayList<Type> keyTypes,
+                  ArrayList<Type> recordTypes, int blockSize) throws IOException {
         this.file = file;
-        this.degree = degree;
+        this.blockSize = blockSize;
+        initHeader(file, keyTypes, recordTypes, blockSize);
     }
 
     /**
@@ -50,23 +77,67 @@ public class BpTree {
      * inserts the tree header
      * @param fileName File name
      */
-    public BpTree(String fileName, int degree) throws IOException {
-        this.degree = degree;
+    public BpTree(String fileName, ArrayList<Type> keyTypes,
+                  ArrayList<Type> recordTypes, int blockSize) throws IOException {
+        this.blockSize = blockSize;
         file = new RandomAccessFile(fileName, "rw");
+        initHeader(file, keyTypes, recordTypes, blockSize);
+    }
 
+    /**
+     * Method to write the header into the B+ file
+     * @param file file to write in
+     * @param recordTypes recordTypes to store
+     * @param blockSize disk block size
+     * @throws IOException if file can't be written
+     */
+    private void initHeader(RandomAccessFile file, ArrayList<Type> keyTypes,
+                            ArrayList<Type> recordTypes, int blockSize) throws IOException {
         // Write the header of the tree
-        // Header length is: 8 bytes
-        file.writeInt(degree);
-        file.seek(4);
-        file.writeInt(root);
+        file.writeInt(blockSize);
 
+        // Write the key types
+        this.keyTypes = keyTypes;
+        file.writeInt(keyTypes.size());
+        for (Type t : keyTypes) {
+            file.writeInt(t.val());
+        }
+
+        // Write the record types
+        this.recordTypes = recordTypes;
+        file.writeInt(recordTypes.size());
+        for (Type t : recordTypes) {
+            file.writeInt(t.val());
+        }
+
+        root = file.getFilePointer() + 8;
+        file.writeLong(root);
+
+        // Flag if node is a leaf
+        // in this case root is.
+        file.writeBoolean(true);
+    }
+
+    /**
+     * Method that closes the tree
+     * @throws IOException if can't be closed
+     */
+    public void close() throws IOException{
+        file.close();
     }
 
     /**
      * Insertion of char leaf into the B+ tree
      * @param val Table row to insert
      */
-    public void insert(Key key, Tuple val) {
+    public void insert(Key key, Tuple val) throws IOException {
+        file.seek(root);
+        boolean isLeaf = file.readBoolean();
+        if (isLeaf) {
+
+        } else {
+
+        }
 
     }
 
