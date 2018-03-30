@@ -1181,6 +1181,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         layout.getUI().getUI().addWindow(confirmationWindow);
     }
 
+    public void loadDbMetadata() {
+        symbolTable.loadDbMetadata(dbInUse, jsonParser);
+    }
+
     public void setDbInUse(String db) {
         dbInUse = db;
     }

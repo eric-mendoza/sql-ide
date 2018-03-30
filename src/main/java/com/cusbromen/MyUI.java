@@ -38,6 +38,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -373,7 +374,7 @@ public class MyUI extends UI {
 
         for (Object key : keys) {
             dbsTreeData.addItem("DBMS Current databases", "DB: " + key.toString());
-            JSONObject dbData = new JSONObject();
+            JSONObject dbData;
             try {
                 File dbs = new File("metadata/" + key.toString() + "/" + key.toString() + ".json");
                 if (dbs.exists()) {
@@ -383,7 +384,7 @@ public class MyUI extends UI {
                     Set<?> keysInside = dbData.keySet();
 
                     for (Object keyInside : keysInside) {
-                        dbsTreeData.addItem("DB: " + key.toString(), keyInside.toString());
+                        dbsTreeData.addItem("DB: " + key.toString(), key.toString() + "_" + keyInside.toString());
                     }
                 }
             } catch (Exception e) { }
@@ -392,6 +393,25 @@ public class MyUI extends UI {
                 if (event.getItem().toString().contains("DB: ")) {
                     String dbName = event.getItem().toString().replace("DB: ", "");
                     visitor.setDbInUse(dbName);
+
+                    try {
+                        // See if lastdb dir exists
+                        File lastDb = new File("metadata/lastDbUsed");
+
+                        if (!lastDb.exists()){
+                            lastDb.createNewFile();
+                        }
+
+                        PrintWriter writer = new PrintWriter(lastDb, "UTF-8");
+                        // Write to file
+                        writer.write(dbName);
+                        writer.close();
+
+                        visitor.loadDbMetadata();
+
+                    } catch (IOException e){
+                        // handle error
+                    }
 
                     Notification notification = new Notification("Selected database " + dbName, "Click to dismiss");
                     notification.setDelayMsec(500);
