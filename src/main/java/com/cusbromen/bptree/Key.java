@@ -6,6 +6,15 @@ import java.util.ArrayList;
 
 public class Key extends Tuple implements Comparable<Key>{
 
+    public Key(){
+
+    }
+
+    public Key(ArrayList<Type> types, RandomAccessFile file) throws IOException{
+        super(types, file);
+    }
+
+
     @Override
     public int compareTo(Key o) {
         for (int i = 0; i < records.size(); i++) {

@@ -116,6 +116,9 @@ public class BpTree {
         // Flag if node is a leaf
         // in this case root is.
         file.writeBoolean(true);
+
+        // Initialize the leaf node
+        (new LeafNode(blockSize)).writeToFile(file);
     }
 
     /**
@@ -127,17 +130,63 @@ public class BpTree {
     }
 
     /**
+     * Search method
+     * @param key key to find
+     * @return Tuple if exists, null if not
+     */
+    public LeafNode search(Key key) throws IOException{
+        file.seek(root);
+        return treeSearch(key);
+    }
+
+    public LeafNode treeSearch(Key key) throws IOException{
+
+        // If it is a leaf
+        if (file.readBoolean()) {
+            return new LeafNode(recordTypes, file);
+        }
+
+        // Then it is a key
+        KeyNode keyNode = new KeyNode(keyTypes, file);
+        ArrayList<Key> keys = keyNode.getKeys();
+        ArrayList<Long> childs = keyNode.getChilds();
+
+        // Check first node
+        if (key.compareTo(keys.get(0)) < 0) {
+            file.seek(childs.get(0));
+            return treeSearch(key);
+        }
+
+        // Check middle nodes
+        for (int i = 0; i < keys.size() - 1; i++) {
+            if (key.compareTo(keys.get(i)) >= 0
+                    && key.compareTo(keys.get(i + 1)) < 0) {
+                file.seek(childs.get(i + 1));
+                return treeSearch(key);
+            }
+        }
+
+        // Check final node
+        if (key.compareTo(keys.get(keys.size() - 1)) >= 0){
+            file.seek(childs.get(childs.size() - 1));
+            return treeSearch(key);
+        }
+
+        return null;
+    }
+
+    /**
      * Insertion of char leaf into the B+ tree
      * @param val Table row to insert
      */
     public void insert(Key key, Tuple val) throws IOException {
-        file.seek(root);
-        boolean isLeaf = file.readBoolean();
-        if (isLeaf) {
-
-        } else {
-
-        }
+//        file.seek(root);
+//        boolean isLeaf = file.readBoolean();
+//        if (isLeaf) {
+//            LeafNode leafNode = new LeafNode(recordTypes, file);
+//        } else {
+////            KeyNode keyNode = new KeyNode(keyTypes, file);
+//        }
 
     }
 

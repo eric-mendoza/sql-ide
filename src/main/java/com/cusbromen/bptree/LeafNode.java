@@ -14,7 +14,11 @@ public class LeafNode extends Node{
     // Leaf nodes can store a lot of tuples
     private ArrayList<Tuple> tuples;
 
-    public LeafNode() {
+    /**
+     * Default constructor
+     */
+    public LeafNode(long freeBytes) {
+        availableSpace = freeBytes;
         tuples = new ArrayList<>();
         nextNode = -1;
         prevNode = -1;
@@ -22,7 +26,7 @@ public class LeafNode extends Node{
 
     /**
      * Cosntructor
-     * @param types Types of the records stored
+     * @param types Types of the stored records
      * @param file File to read from
      * @throws IOException if there is problems :D
      */
@@ -40,6 +44,7 @@ public class LeafNode extends Node{
         file.writeLong(availableSpace);
         file.writeLong(prevNode);
         file.writeLong(nextNode);
+        file.writeInt(tuples.size());
         for (Tuple tuple : tuples) {
             tuple.writeToFile(file);
         }
@@ -56,7 +61,8 @@ public class LeafNode extends Node{
         availableSpace = file.readLong();
         prevNode = file.readLong();
         nextNode = file.readLong();
-        for (int i = 0; i < types.size(); i++) {
+        int size = file.readInt();
+        for (int i = 0; i < size; i++) {
             tuples.add(new Tuple(types, file));
         }
     }

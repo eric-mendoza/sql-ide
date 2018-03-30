@@ -7,16 +7,16 @@ import java.util.ArrayList;
 public class KeyNode extends Node {
 
 
-    private Key key;
+    private ArrayList<Key> keys;
     private ArrayList<Long> childs;
 
 
     /**
      * Empty key node
-     * @param key key to append
      */
-    public KeyNode(Key key) {
-        this.key = key;
+    public KeyNode() {
+        keys = new ArrayList<>();
+        childs = new ArrayList<>();
     }
 
     /**
@@ -26,7 +26,8 @@ public class KeyNode extends Node {
      * @throws IOException if something goes wrong
      */
     public KeyNode(ArrayList<Type> types, RandomAccessFile file) throws IOException {
-        key = new Key();
+        keys = new ArrayList<>();
+        childs = new ArrayList<>();
         readFromFile(types, file);
     }
 
@@ -38,7 +39,10 @@ public class KeyNode extends Node {
      */
     public void writeToFile(RandomAccessFile file) throws IOException {
         file.writeLong(availableSpace);
-        key.writeToFile(file);
+        file.writeInt(keys.size());
+        for (Key key : keys) {
+            key.writeToFile(file);
+        }
         file.writeInt(childs.size());
         for (Long child: childs) {
             file.writeLong(child);
@@ -53,15 +57,20 @@ public class KeyNode extends Node {
      */
     public void readFromFile(ArrayList<Type> types, RandomAccessFile file) throws IOException {
         availableSpace = file.readLong();
-        key.readFromFile(types, file);
+        // Load the keys
         int size = file.readInt();
+        for (int i = 0; i < size; i++) {
+            keys.add(new Key(types, file));
+        }
+        // Load child pointers
+        size = file.readInt();
         for (int i = 0; i < size; i++) {
             childs.add(file.readLong());
         }
     }
 
-    public Key getKey() {
-        return key;
+    public ArrayList<Key> getKeys() {
+        return keys;
     }
 
     public ArrayList<Long> getChilds() {
