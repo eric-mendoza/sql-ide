@@ -1137,10 +1137,12 @@ public class Visitor extends SqlBaseVisitor<String> {
         Button confirmBtn = new Button("Drop database");
         confirmBtn.setIcon(VaadinIcons.CHECK);
         confirmBtn.setSizeFull();
+        confirmBtn.setStyleName("danger");
 
         Button cancelBtn = new Button("Cancel");
         cancelBtn.setIcon(VaadinIcons.CLOSE);
         cancelBtn.setSizeFull();
+        cancelBtn.setStyleName("primary");
 
         confirmBtn.addClickListener(event -> {
             // See if is dbInUse
@@ -1202,6 +1204,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     public void refreshInfoLists() {
         this.semanticErrorsList.clear();
         this.verboseParser.clear();
+        this.successMessages.clear();
     }
 
     public List<String> getVerboseParser() { return verboseParser;}
