@@ -19,6 +19,7 @@ public class Main {
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 
         try {
+            // Example of the B+ tree
             ArrayList<Type> types = new ArrayList<>();
             types.add(Type.CHARS);
             types.add(Type.INT);
@@ -28,6 +29,8 @@ public class Main {
             BpTree bpTree = new BpTree("test.bin", primaryTypes,
                     types, 4096);
             bpTree.close();
+
+            // File already created
             BpTree bpTree1 = new BpTree("test.bin");
             Key k = new Key();
             char[] bb = new char[3];
@@ -35,9 +38,11 @@ public class Main {
             bb[1] = 'C';
             bb[2] = 'D';
             k.add(new CharRecord(bb));
-            k.add(new IntRecord(4));
+            k.add(new FloatRecord(4.0));
             Tuple row = new Tuple();
+            row.add(new CharRecord(bb));
             row.add(new IntRecord(4));
+            bpTree1.insert(k, row);
             bpTree1.insert(k, row);
         }catch (Exception ex) {
             ex.printStackTrace();

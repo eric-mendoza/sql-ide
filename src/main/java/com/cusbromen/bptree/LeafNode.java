@@ -10,8 +10,11 @@ public class LeafNode extends Node{
     // Properties of a B+ tree
     private long nextNode;
     private long prevNode;
+    private long head;
+    private long back;
 
     // Leaf nodes can store a lot of tuples
+    private ArrayList<Key> keys;
     private ArrayList<Tuple> tuples;
 
     /**
@@ -19,6 +22,7 @@ public class LeafNode extends Node{
      */
     public LeafNode(long freeBytes) {
         availableSpace = freeBytes;
+        keys = new ArrayList<>();
         tuples = new ArrayList<>();
         nextNode = -1;
         prevNode = -1;
@@ -26,12 +30,14 @@ public class LeafNode extends Node{
 
     /**
      * Cosntructor
+     * @param keyTypes Types of the keys
      * @param types Types of the stored records
      * @param file File to read from
      * @throws IOException if there is problems :D
      */
-    public LeafNode(ArrayList<Type> types, RandomAccessFile file) throws IOException{
-        readFromFile(types, file);
+    public LeafNode(ArrayList<Type> keyTypes, ArrayList<Type> types,
+                    RandomAccessFile file) throws IOException{
+        readFromFile(keyTypes, types, file);
     }
 
 
@@ -41,13 +47,26 @@ public class LeafNode extends Node{
      * @throws IOException if there is some problem writing on file
      */
     public void writeToFile(RandomAccessFile file) throws IOException{
+        long diff = file.getFilePointer();
+        long firstPos = diff;
         file.writeLong(availableSpace);
         file.writeLong(prevNode);
         file.writeLong(nextNode);
+        file.writeLong(firstPos);
         file.writeInt(tuples.size());
-        for (Tuple tuple : tuples) {
-            tuple.writeToFile(file);
+        for (int i = 0; i < tuples.size(); i++) {
+            keys.get(i).writeToFile(file);
+            tuples.get(i).writeToFile(file);
         }
+
+        back = file.getFilePointer();
+        // Bytes written
+        diff = back - diff;
+        file.seek(firstPos);
+        availableSpace -= diff;
+        file.writeLong(availableSpace);
+        file.seek(back);
+
     }
 
     /**
@@ -56,16 +75,65 @@ public class LeafNode extends Node{
      * @param file file to read from
      * @throws IOException if there is some problem reading
      */
-    public void readFromFile(ArrayList<Type> types, RandomAccessFile file) throws IOException{
+    public void readFromFile(ArrayList<Type> keyTypes, ArrayList<Type> types,
+                             RandomAccessFile file) throws IOException{
+        keys = new ArrayList<>();
         tuples = new ArrayList<>();
         availableSpace = file.readLong();
         prevNode = file.readLong();
         nextNode = file.readLong();
+        head = file.readLong();
         int size = file.readInt();
         for (int i = 0; i < size; i++) {
+            keys.add(new Key(keyTypes, file));
             tuples.add(new Tuple(types, file));
         }
+        back = file.getFilePointer();
     }
+
+    /**
+     * Adds a tuple to the leaf node
+     * @param t tuple to add
+     * @param file file to write to
+     * @throws IOException if something goes wrong
+     */
+    void add(Key k, Tuple t, RandomAccessFile file) throws IOException{
+        file.seek(back);
+        k.writeToFile(file);
+        t.writeToFile(file);
+        availableSpace -= file.getFilePointer() - back;
+        back = file.getFilePointer();
+        keys.add(k);
+        tuples.add(t);
+        updateHeader(file);
+    }
+
+    /**
+     * Updates the node characteristics on disk
+     */
+    private void updateHeader(RandomAccessFile file) throws IOException {
+        file.seek(head);
+        file.writeLong(availableSpace);
+        file.writeLong(prevNode);
+        file.writeLong(nextNode);
+        file.seek(file.getFilePointer() + 8);
+        file.writeInt(keys.size());
+    }
+
+    /**
+     * Method to search a key on the current node
+     * @param k key to search
+     * @return the record of the key
+     */
+    Tuple get(Key k) {
+        for (int i = 0; i < keys.size(); i++) {
+            if (k.compareTo(keys.get(i)) == 0){
+                return tuples.get(i);
+            }
+        }
+        return null;
+    }
+
 
     public long getAvailableSpace() {
         return availableSpace;
@@ -77,5 +145,9 @@ public class LeafNode extends Node{
 
     public long getPrevNode() {
         return prevNode;
+    }
+
+    public ArrayList<Tuple> getTuples() {
+        return tuples;
     }
 }

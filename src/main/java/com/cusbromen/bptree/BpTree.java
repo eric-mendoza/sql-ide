@@ -21,6 +21,10 @@ public class BpTree {
     // Pointer to tree root
     private long root;
 
+    // Dimensions of table in bytes
+    private long keySize;
+    private long recordSize;
+
     // Types of the table
     private ArrayList<Type> recordTypes;
 
@@ -41,6 +45,7 @@ public class BpTree {
             recordTypes = new ArrayList<>();
             // Retrieve the header
             blockSize = file.readInt();
+
             int size = file.readInt();
             for (int i = 0; i < size; i++) {
                 keyTypes.add(Type.fromInt(file.readInt()));
@@ -65,7 +70,8 @@ public class BpTree {
      *                  the of the disk for efficient storage
      */
     public BpTree(RandomAccessFile file, ArrayList<Type> keyTypes,
-                  ArrayList<Type> recordTypes, int blockSize) throws IOException {
+                  ArrayList<Type> recordTypes, int blockSize,
+                  int keySize, int recordSize) throws IOException {
         this.file = file;
         this.blockSize = blockSize;
         initHeader(file, keyTypes, recordTypes, blockSize);
@@ -110,15 +116,17 @@ public class BpTree {
             file.writeInt(t.val());
         }
 
-        root = file.getFilePointer() + 8;
+        root = blockSize;
         file.writeLong(root);
 
+        file.seek(root);
         // Flag if node is a leaf
         // in this case root is.
         file.writeBoolean(true);
 
-        // Initialize the leaf node
-        (new LeafNode(blockSize)).writeToFile(file);
+        // Initialize the leaf node with blocksize - 1 free space
+        // the -1 is because of the boolean write above
+        (new LeafNode(blockSize - 1)).writeToFile(file);
     }
 
     /**
@@ -143,7 +151,7 @@ public class BpTree {
 
         // If it is a leaf
         if (file.readBoolean()) {
-            return new LeafNode(recordTypes, file);
+            return new LeafNode(keyTypes, recordTypes, file);
         }
 
         // Then it is a key
@@ -177,16 +185,13 @@ public class BpTree {
 
     /**
      * Insertion of char leaf into the B+ tree
-     * @param val Table row to insert
+     * @param row Table row to insert
      */
-    public void insert(Key key, Tuple val) throws IOException {
-//        file.seek(root);
-//        boolean isLeaf = file.readBoolean();
-//        if (isLeaf) {
-//            LeafNode leafNode = new LeafNode(recordTypes, file);
-//        } else {
-////            KeyNode keyNode = new KeyNode(keyTypes, file);
-//        }
+    public void insert(Key key, Tuple row) throws IOException {
+
+        LeafNode leafNode = search(key);
+        leafNode.add(key, row, file);
+
 
     }
 
