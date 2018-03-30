@@ -110,8 +110,8 @@ alter_rename
     ;
 
 alter_action
-    :   'ADD' 'COLUMN' ID constraint                                  #addColumn
-    |   'ADD' 'CONSTRAINT' constraint                                 #addConstraint
+    :   'ADD' 'COLUMN' ID data_type constraint                                  #addColumn
+    |   'ADD'  constraint                                               #addConstraint
     |   'DROP' 'COLUMN' ID                                            #dropColumn
     |   'DROP' 'CONSTRAINT' ID                                        #dropConstraint
     ;

@@ -7,10 +7,7 @@ import com.vaadin.server.Sizeable;
 import com.vaadin.shared.Position;
 import com.vaadin.shared.ui.ContentMode;
 import com.vaadin.ui.*;
-import org.antlr.v4.parse.ANTLRParser;
-import org.antlr.v4.runtime.CommonToken;
 import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -32,7 +29,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     private ArrayList<String[]> newReferencedTables; // it's going to be used to save referenced tables temporary
     private SymbolTableHashMap symbolTable;
     private String lastDbUsedPath = "metadata/lastDbUsed";
-    private boolean syntaxError;
+    private boolean syntaxError, addingConstraint;
     private Layout layout;
 
     public Visitor() {
@@ -45,6 +42,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         dbInUse = loadLastUsedDb();
         symbolTable.readMetadata(dbsJsonPath, jsonParser, dbInUse);  // Load the metadata of dbs before working
         syntaxError = false;
+        addingConstraint = false;
 
         // TODO: Este mensaje tendrá que ser mostrado por la gui
         System.out.println("DB in use: " + getDbInUse());
@@ -398,22 +396,115 @@ public class Visitor extends SqlBaseVisitor<String> {
         return ctx.ID().getSymbol().getText();
     }
 
-    /** 'ADD' 'COLUMN' ID ('CONSTRAINT' c_constraint)* */
+    /** 'ADD' 'COLUMN' ID data_type constraint     */
     @Override
     public String visitAddColumn(SqlParser.AddColumnContext ctx) {
-        return super.visitAddColumn(ctx);
+        if (dbInUse != null){
+            newTable = symbolTable.getTable(newTableName);
+
+            // Load variables for creation
+            newColumns = (JSONObject) newTable.get("columns");
+            newConstraints = (JSONObject) newTable.get("constraints");
+
+            // Initialize new ones
+            newColumnName = ctx.ID().getSymbol().getText();
+            newColumn = new JSONObject();
+            newTypeColumn = visit(ctx.data_type());
+            newColumn.put("type", newTypeColumn);
+            newReferencedTables = new ArrayList<>();
+
+            // Make shure table doesn't exists already
+            if (newColumns.get(newColumnName) != null){
+                semanticErrorsList.add("Error: Couldn't create column. Column <strong>" + newColumnName + "</strong> already exists. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
+            // Analyze columns for the table and add them to newColumn and all the constraints too
+            String visit = "";
+            if (ctx.constraint() != null){
+                visit = visit(ctx.constraint());
+            }
+
+            if (visit.equals("error")) {
+                semanticErrorsList.add("Error: Couldn't create column <strong>" + newColumnName + "</strong>. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
+            // Add newColumn to newColumns
+            newColumns.put(newColumnName, newColumn);
+
+            int createTableResult = symbolTable.addConstraintsAndRefreshJson(newTableName, newReferencedTables);
+
+            if (createTableResult == 1) {
+                successMessages.add("Successfully created column <strong>" + newColumnName + "</strong>.");
+            } else if (createTableResult == 3) {
+                semanticErrorsList.add("Error: Two foreign keys have the same ID. Couldn't create column <strong>" + newColumnName + "</strong>. Line: " + ctx.start.getLine());
+            }
+            return "void";
+        } else {
+            semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't created. Line: " + ctx.start.getLine());
+            return "error";
+        }
     }
 
-    /** 'ADD' 'CONSTRAINT' c_constraint */
+    /** 'ADD' 'CONSTRAINT' constraint */
     @Override
     public String visitAddConstraint(SqlParser.AddConstraintContext ctx) {
-        return super.visitAddConstraint(ctx);
+        if (dbInUse != null){
+            addingConstraint = true;
+            newTable = symbolTable.getTable(newTableName);
+
+            // Load variables for creation
+            newColumns = (JSONObject) newTable.get("columns");
+            newConstraints = (JSONObject) newTable.get("constraints");
+
+            // Initialize new ones
+            newColumnName = null;
+            newColumn = null;
+            newTypeColumn = null;
+            newReferencedTables = new ArrayList<>();
+
+            // Analyze columns for the table and add them to newColumn and all the constraints too
+            String visit = visit(ctx.constraint());
+
+            if (visit.equals("error")) {
+                return "error";
+            }
+
+            int result = symbolTable.addConstraintsAndRefreshJson(newTableName, newReferencedTables);
+
+            if (result == 1) {
+                successMessages.add("Successfully created CONSTRAINT <strong>" + newColumnName + "</strong>.");
+            } else if (result == 3) {
+                semanticErrorsList.add("Error: Two foreign keys have the same ID. Couldn't create CONSTRAINT in table <strong>" + newTableName + "</strong>. Line: " + ctx.start.getLine());
+            }
+
+            addingConstraint = false;
+            return "void";
+        } else {
+            semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't created. Line: " + ctx.start.getLine());
+            return "error";
+        }
     }
 
     /** 'DROP' 'COLUMN' ID */
     @Override
     public String visitDropColumn(SqlParser.DropColumnContext ctx) {
-        return super.visitDropColumn(ctx);
+        String columnId = ctx.ID().getSymbol().getText();
+        int result = symbolTable.dropColumn(newTableName, columnId);
+        if (result == 0){
+            semanticErrorsList.add("Error: Table <strong>" + newTableName + "</strong> doesn't exists in DB in use. Line: " + ctx.start.getLine());
+            return "error";
+        } else if (result == 1){
+            semanticErrorsList.add("Error: You haven't selected a database yet. Line: " + ctx.start.getLine());
+            return "error";
+        } else if (result == 2){
+            semanticErrorsList.add("Error: You can't delete the column <strong>" + columnId + "</strong> because it's being used by a CONSTRAINT. Drop the constraint if you want to delete the column. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        successMessages.add("Successfull operation. <strong>DROP COLUMN</strong> in table " + newTableName + ".");
+        return "void";
     }
 
     /** 'DROP' 'CONSTRAINT' ID */
@@ -425,7 +516,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             semanticErrorsList.add("Error: Constraint <strong>" + constraintId + "</strong> doesn't exists. Line: " + ctx.start.getLine());
             return "error";
         } else if (result == 1){
-            semanticErrorsList.add("Error: Table <strong>" + newTable + "</strong> doesn't exists in DB in use. Line: " + ctx.start.getLine());
+            semanticErrorsList.add("Error: Table <strong>" + newTableName + "</strong> doesn't exists in DB in use. Line: " + ctx.start.getLine());
             return "error";
         } else if (result == 2){
             semanticErrorsList.add("Error: You haven't selected a database yet. Line: " + ctx.start.getLine());
@@ -526,7 +617,11 @@ public class Visitor extends SqlBaseVisitor<String> {
     @Override
     public String visitColumn_constraint(SqlParser.Column_constraintContext ctx) {
         // Add constraint to column
-        newColumn.put("nullable", "false");
+        if (!addingConstraint) newColumn.put("nullable", "false");
+        else {
+            semanticErrorsList.add("Error: You can't apply NOT NULL to a table. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
         return "void";
     }
 
@@ -585,6 +680,14 @@ public class Visitor extends SqlBaseVisitor<String> {
         List<TerminalNode> ids = ctx.ID();
         List<TerminalNode> referencesIds = ctx.foreignKeyReferences().ID();
 
+        // If we are just adding a Constraint, it's a MUST to specify the column names
+        if (addingConstraint){
+            if (ids.size() <= 1){
+                semanticErrorsList.add("Error: Couldn't add foreign key. You must specify which local columns you are trying to referenc, eg: 'FK_name FOREIGN KEY (localColumn) REFERENCES...'. Line: " + ctx.getStart().getLine());
+                return "error";
+            }
+        }
+
         // Analyse the constraint name, it should begin with FK_ and
         String constraintId = ids.get(0).getSymbol().getText();
         boolean correctName = constraintId.startsWith("FK_");
@@ -640,7 +743,7 @@ public class Visitor extends SqlBaseVisitor<String> {
                     referencedColumn = referencesIds.get(i).getSymbol().getText();
 
                     // See if the column exists in actual table
-                    usingActualColumn = newColumnName.equals(column);
+                    usingActualColumn = column.equals(newColumnName);
                     if ((newColumns.get(column) == null) && !usingActualColumn){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY. The column <strong>" + column +"</strong> doesn't exists in table <strong>" + newTableName + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";
@@ -683,7 +786,7 @@ public class Visitor extends SqlBaseVisitor<String> {
                     referencedColumn = (String) referencedPrimaryKey.get(i - 1);
 
                     // See if the column exists in actual table
-                    usingActualColumn = newColumnName.equals(column);
+                    usingActualColumn = column.equals(newColumnName);
                     if ((newColumns.get(column) == null) && !usingActualColumn){
                         semanticErrorsList.add("Error: Couldn't create FOREIGN KEY. The column <strong>" + column +"</strong> doesn't exists in table <strong>" + newTableName + "</strong>. Line: " + ctx.getStart().getLine());
                         return "error";

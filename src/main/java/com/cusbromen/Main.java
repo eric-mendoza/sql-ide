@@ -21,12 +21,12 @@ public class Main {
                 "CREATE TABLE" +
                 " clase(" +
                 "  id INT CONSTRAINT PK_clase PRIMARY KEY NOT NULL," +
-                "  id2 CHAR(40) NOT NULL," +
+                "  id2 CHAR(40) CONSTRAINT CH_lol CHECK(id > 0 AND id < 100) NOT NULL," +
                 "  idColegio INT CONSTRAINT FK_clase FOREIGN KEY REFERENCES colegio (id) NOT NULL," +
                 "  no_estudiantes INT," +
                 "  no_tareas INT CONSTRAINT FK_clase3 FOREIGN KEY REFERENCES colegio (zona) NOT NULL" +
                 ");" +
-                "ALTER TABLE clase DROP CONSTRAINT FK_clase;");
+                "ALTER TABLE clase ADD CONSTRAINT FK_clase7 FOREIGN KEY (no_tareas) REFERENCES colegio (id);");
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 

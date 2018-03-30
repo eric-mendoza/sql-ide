@@ -116,26 +116,37 @@ public class SymbolTableHashMap {
         }
     }
 
-    public int alterTable(String currentDb) {
-        verboseParser.add(">> Will try to alter metadata for table");
-        // return 0: You are not using a db.
-        // return 1: success
-        // return 2: table already exists
-        // return 3: old table does not exist
-        if (currentDb != null){
-            String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
-            File db = new File(dbPath);
 
-            verboseParser.add(">> Using file: " + dbPath);
+    public int addConstraintsAndRefreshJson(String tableName, ArrayList<String[]> newReferencedTables) {
+        // Verify if there are foreign keys references to create
+        if (newReferencedTables.size() >= 1){
+            for (String[] newReferencedTableTuple : newReferencedTables) {
+                // Add reference to referenced table
+                JSONObject referencedTable = getTable(newReferencedTableTuple[0]);  // get table [referencedTable]
+                JSONObject ingoingReferences = (JSONObject) referencedTable.get("ingoingReferences");  // get ingoing references
+                JSONObject inRef;
+                if (ingoingReferences == null){
+                    // Create ingoing references object
+                    inRef = new JSONObject();
+                } else {
+                    // Cast object
+                    inRef = ingoingReferences;
 
-            // ACTION
-            // TODO ACTION
-
-            return 4;
-        } else {
-            // Not using a db
-            return 0;
+                    // Verify that constraint has unique name
+                    if (inRef.get(newReferencedTableTuple[1]) != null) return 3;
+                }
+                inRef.put(newReferencedTableTuple[1], tableName);  // add the new reference <referencedTable, constraintName>
+            }
         }
+        try{
+            // Update JSON
+            PrintWriter writer = new PrintWriter("metadata/" + dbInUseId + "/" + dbInUseId + ".json", "UTF-8");
+            writer.write(dbInUseMetadata.toJSONString());
+            writer.close();
+        } catch (FileNotFoundException | UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return 1;
     }
 
     /**
@@ -179,9 +190,7 @@ public class SymbolTableHashMap {
                             if (inRef.get(newReferencedTableTuple[1]) != null) return 3;
                         }
 
-                        inRef.put(newReferencedTableTuple[1], tableName);  // add the new reference <constraintName, referencedTable>
-                        referencedTable.put("ingoingReferences", inRef);  // Update references
-                        dbInUseMetadata.put(newReferencedTableTuple[0], referencedTable);  // Update table in dbMetadata
+                        inRef.put(newReferencedTableTuple[1], tableName);  // add the new reference <referencedTable, constraintName>
                     }
                 }
 
@@ -606,4 +615,68 @@ public class SymbolTableHashMap {
         }
     }
 
+    public ArrayList<String> getColumnsUsedInConstraints(JSONObject table){
+        ArrayList<String> columns = new ArrayList<>();
+        // Get table
+        JSONObject constraints = (JSONObject) table.get("constraints");
+        Set<String> constraintsIds = constraints.keySet();
+        for (String constrain : constraintsIds) {
+            if (constrain.startsWith("PK_")){
+                JSONArray columnsA = (JSONArray) constraints.get(constrain);
+                for (Object c : columnsA) {
+                    columns.add((String) c);
+                }
+            }
+
+            else if (constrain.startsWith("FK_")){
+                JSONObject columnsB = (JSONObject) constraints.get(constrain);
+                JSONArray columnsA = (JSONArray) columnsB.get("columns");
+                for (Object c : columnsA) {
+                    columns.add((String) c);
+                }
+            }
+
+            else {
+                // TODO: Get tables used in the check condition
+                System.out.println("Here we should be getting the tables used in CHECK");
+            }
+        }
+        return columns;
+    }
+
+    /**
+     * Deletes a constraint of a table
+     * @param tableId table modified
+     * @param columnId the column to be deleted
+     * @return 0: Constraint no existe; 1: Table invalid; 2: No DB selected; 3: Correct
+     */
+    public int dropColumn(String tableId, String columnId) {
+        try {
+            if (dbInUseMetadata != null){
+                JSONObject tableObject = (JSONObject) dbInUseMetadata.get(tableId);
+                if (tableObject != null){
+                    ArrayList<String> notDeletableColumns = getColumnsUsedInConstraints(tableObject);
+                    if (notDeletableColumns.contains(columnId)){
+                        return 2;
+                    }
+
+                    // DROP COLUMN
+                    ((JSONObject) tableObject.get("columns")).remove(columnId);
+
+                    PrintWriter writer = new PrintWriter("metadata/" + dbInUseId + "/" + dbInUseId + ".json", "UTF-8");
+                    writer.write(dbInUseMetadata.toJSONString());
+                    writer.close();
+
+
+                } else {
+                    return 0;
+                }
+            } else {
+                return 1;
+            }
+            return 3;
+        } catch (IOException e){
+            return 0;
+        }
+    }
 }
