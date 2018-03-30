@@ -13,7 +13,6 @@
 
 test.bin
 
-src/main/java/com/cusbromen/Main.java
 
 metadata/
 uitest/src/main/themes/VAADIN/themes/**/styles.css
