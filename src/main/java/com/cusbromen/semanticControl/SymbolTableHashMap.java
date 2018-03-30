@@ -23,6 +23,8 @@ public class SymbolTableHashMap {
 
     public SymbolTableHashMap(List<String> verboseParser) {
         this.verboseParser = verboseParser;
+        dbInUseId = null;
+        dbInUseMetadata = null;
     }
 
     public String showDatabases() {
@@ -460,6 +462,8 @@ public class SymbolTableHashMap {
                 dbInUseFile.delete();
             }
 
+            // TODO ELIMINAR DE LAS TABLAS A LAS QUE ESTA HACIA REFERENCIA, LA REFERENCIA
+
         } catch (IOException e){
             e.printStackTrace();
         }
@@ -491,9 +495,19 @@ public class SymbolTableHashMap {
                 type = (String) column.get("type");
                 result += "Type: " + type;
 
-                constraintObject = column.get("constraint");
+                // Nullable
+                constraintObject = column.get("nullable");
                 if (constraintObject != null){
-                    result += ", Column Constraint: " + (String) constraintObject;
+                    result += ", Nullable: " + constraintObject;
+                } else {
+                    result += ", Nullable: " + "true";
+                }
+
+                // Length
+                // Nullable
+                constraintObject = column.get("length");
+                if (constraintObject != null){
+                    result += ", Length: " + constraintObject;
                 }
             }
 
@@ -509,6 +523,16 @@ public class SymbolTableHashMap {
      */
     public void deleteTable(String tableId) {
         try {
+            // Drop FK_ constraints before deleting table, to eliminate ingoing references
+            JSONObject table = (JSONObject) dbInUseMetadata.get(tableId);
+            JSONObject constraints = (JSONObject) table.get("constraints");
+            Set<String> constraintsIds = constraints.keySet();
+            for (String constraintId : constraintsIds) {
+                if (constraintId.startsWith("FK_")){
+                    dropConstraint(tableId, constraintId);
+                }
+            }
+
             dbInUseMetadata.remove(tableId);
 
             // Update JSON
@@ -518,6 +542,68 @@ public class SymbolTableHashMap {
         } catch (FileNotFoundException | UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-
     }
+
+    /**
+     * Deletes a constraint of a table
+     * @param tableOriginId table modified
+     * @param constraintId the constraint to be deleted
+     * @return 0: Constraint no existe; 1: Table invalid; 2: No DB selected; 3: Correct
+     */
+    public int dropConstraint(String tableOriginId, String constraintId){
+        try {
+            if (dbInUseMetadata != null){
+                Object tableObject = dbInUseMetadata.get(tableOriginId);
+                if (tableObject != null){
+                    JSONObject table = (JSONObject) tableObject;
+                    JSONObject constraints = (JSONObject) table.get("constraints");
+
+                    // verificar si existe el constraint
+                    Object constraint = constraints.get(constraintId);
+                    if (constraint == null) return 0;
+
+                    // Analizar tipo de constraint
+                    if (constraintId.startsWith("PK_")){
+                        constraints.remove(constraintId);  // Delete
+                        // TODO: Que deberia ocurrir con el arbol
+                    }
+
+                    else if (constraintId.startsWith("FK_")){
+                        // Eliminar de tabla referenciada
+                        JSONObject constraintFk = (JSONObject) constraint;
+                        String referencedTableId = (String) constraintFk.get("referencedTable");
+                        JSONObject referencedTable = (JSONObject) dbInUseMetadata.get(referencedTableId);
+                        JSONObject ingoingReferences = (JSONObject) referencedTable.get("ingoingReferences");
+                        ingoingReferences.remove(constraintId);
+
+                        // Eliminar de tabla origen
+                        constraints.remove(constraintId);  // Delete
+                    }
+
+                    else {
+                        // Eliminar Check
+                        constraints.remove(constraintId);
+                    }
+
+                    // Rewrite metadata for both tables
+                    PrintWriter writer = new PrintWriter("metadata/" + dbInUseId + "/" + dbInUseId + ".json", "UTF-8");
+                    writer.write(dbInUseMetadata.toJSONString());
+                    writer.close();
+
+
+                } else {
+                    // Table doesn't exists
+                    return 1;
+                }
+            } else {
+                // Haven't selected a DB
+                return 2;
+            }
+
+            return 3;  // correct
+        } catch (IOException e){
+            return 0;
+        }
+    }
+
 }

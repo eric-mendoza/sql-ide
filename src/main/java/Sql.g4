@@ -4,12 +4,18 @@
 grammar Sql;
 
 // -------------------------------- LEXER --------------------------------------
+NOT: 'NOT';
+OR : 'OR';
+AND : 'AND';
+
 fragment DIGIT:     '0'..'9' ;
 NUMBER:             DIGIT(DIGIT)* ;
+INT:                '-'? NUMBER;
+FLOAT:              INT '.'? NUMBER?;
 ID:                 (('a'..'z'|'A'..'Z' | '_') ((DIGIT)*))+ ;
 NEWLINE:            '\r'? '\n' ;
-WHITESPACE:         [\t\r\n\f ]+ ->channel(HIDDEN) ;
-COMMENTS:           '--' ~('\r' | '\n' )*  -> channel(HIDDEN) ;
+WHITESPACE:         [\t\r\n\f ]+ -> skip ;
+COMMENTS:           '--' ~('\r' | '\n' )*  -> skip ;
 ErrorCharacter
     :   .
     ;
@@ -57,7 +63,7 @@ create_table
     ;
 
 alter_table
-    :   'ALTER' 'TABLE' (alter_rename | alter_action) ';'
+    :   'ALTER' 'TABLE' ID (alter_rename | alter_action) ';'
     ;
 
 drop_table
@@ -100,18 +106,14 @@ condition
     ;
 
 alter_rename
-    :   ID 'RENAME' 'TO' ID
+    :   'RENAME' 'TO' ID
     ;
 
 alter_action
-    :   ID action
-    ;
-
-action
-    :   'ADD' 'COLUMN' ID ('CONSTRAINT' c_constraint)*              #addColumn
-    |   'ADD' 'CONSTRAINT' c_constraint                             #addConstraint
-    |   'DROP' 'COLUMN' ID                                          #dropColumn
-    |   'DROP' 'CONSTRAINT' ID                                      #dropConstraint
+    :   'ADD' 'COLUMN' ID constraint                                  #addColumn
+    |   'ADD' 'CONSTRAINT' constraint                                 #addConstraint
+    |   'DROP' 'COLUMN' ID                                            #dropColumn
+    |   'DROP' 'CONSTRAINT' ID                                        #dropConstraint
     ;
 
 table_element_list
@@ -119,11 +121,11 @@ table_element_list
     ;
 
 table_element
-    :   ID data_type_def (column_constraint)?
+    :   ID data_type_def constraint
     ;
 
 data_type_def
-    :   data_type ('CONSTRAINT' c_constraint)?
+    :   data_type (length_constraint)?
     ;
 
 data_type
@@ -137,9 +139,8 @@ column_constraint
     :   'NOT' 'NULL'
     ;
 
-c_constraint
-    :   keys_constraint
-    |   length_constraint
+constraint
+    :   ((column_constraint)? ('CONSTRAINT' keys_constraint)? | ('CONSTRAINT' keys_constraint)? (column_constraint)?)
     ;
 
 keys_constraint
@@ -153,13 +154,11 @@ foreignKeyReferences
     ;
 
 check_exp
-    :   (ID | NUMBER) (logic_exp | rel_exp) (ID | NUMBER)
-    ;
-
-logic_exp
-    :   'AND'
-    |   'OR'
-    |   'NOT'
+    :   NOT check_exp                                                                       #notExpr
+    |   op1=(ID | NUMBER | INT | FLOAT) rel_exp op2=(ID | NUMBER | INT | FLOAT)             #relExpr
+    |   check_exp AND check_exp                                                             #andExpr
+    |   check_exp OR check_exp                                                              #orExpr
+    |   '(' check_exp ')'                                                                   #parenExpr
     ;
 
 rel_exp
