@@ -16,6 +16,9 @@ public class CharRecord implements Record {
         readFromFile(file);
     }
 
+
+    public char[] getVal() {return val;}
+
     @Override
     public int compareTo(Record o) {
         CharRecord rec = (CharRecord) o;

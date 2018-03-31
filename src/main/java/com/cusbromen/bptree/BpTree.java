@@ -94,6 +94,11 @@ public class BpTree {
      */
     public BpTree(String fileName, ArrayList<Type> keyTypes,
                   ArrayList<Type> recordTypes, int blockSize) throws IOException {
+
+        if (blockSize < 44){
+            throw new IOException("Block size must be at least 44 bytes");
+        }
+
         this.blockSize = blockSize;
         file = new RandomAccessFile(fileName, "rw");
         initHeader(file, keyTypes, recordTypes, blockSize);
@@ -201,6 +206,186 @@ public class BpTree {
     }
 
 
+    /**
+     * Method that gets all the records of the table
+     * @return All the record of the table
+     * @throws IOException If something goes bad
+     */
+    public  ArrayList<Tuple> all() throws IOException{
+        file.seek(root);
+        // While is not a Leaf Node
+        // we will reach the first node
+        // through the first child of every key node
+        while (!file.readBoolean()) {
+            KeyNode keyNode = new KeyNode(keyTypes, file);
+            file.seek(keyNode.getChilds().get(0));
+        }
+
+
+        ArrayList<Tuple> rows = new ArrayList<>();
+        LeafNode leafNode;
+
+        // We reached the first leaf node
+        // so we traverse it to get all the records
+        do {
+            leafNode = new LeafNode(keyTypes, recordTypes, file);
+            ArrayList<Key> keys = leafNode.getKeys();
+            ArrayList<Tuple> tuples = leafNode.getTuples();
+            for (int i = 0; i < keys.size(); i++) {
+                rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+            }
+            if (leafNode.getNextNode() != -1)
+                file.seek(leafNode.getNextNode());
+        }while (leafNode.getNextNode() != -1);
+
+        return rows;
+
+
+    }
+
+    /**
+     * Method that joins a Key with a Tuple
+     * @param k key
+     * @param t tuple
+     * @return joined tuple
+     */
+    public Tuple joinKeyTuple(Key k, Tuple t) {
+        Tuple temp = new Tuple();
+        for (Record r :
+                k.getRecords()) {
+            temp.getRecords().add(r);
+        }
+        for (Record r : t.getRecords()) {
+            temp.getRecords().add(r);
+        }
+        return temp;
+    }
+
+    /**
+     * Method that gets a unique record per search
+     * @param key key to find
+     * @return Tuple with the values
+     * @throws IOException if something goes wrong
+     */
+    public Tuple equalSearch(Key key) throws IOException{
+        LeafNode leafNode = search(key);
+        ArrayList<Key> keys = leafNode.getKeys();
+        ArrayList<Tuple> tuples = leafNode.getTuples();
+        for (int i = 0; i < key.size(); i++) {
+            if (key.compareTo(keys.get(i)) == 0) {
+                return joinKeyTuple(key, tuples.get(i));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * min <= keys <= max
+     * @param min Key min to compare
+     * @param max key max to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Tuple> rangeSearch(Key min, Key max) throws IOException{
+        LeafNode leafNode = search(min);
+
+        ArrayList<Tuple> rows = new ArrayList<>();
+        do {
+            ArrayList<Key> keys = leafNode.getKeys();
+            ArrayList<Tuple> tuples = leafNode.getTuples();
+            for (int i = 0; i < keys.size(); i++) {
+                if (min.compareTo(keys.get(i)) <= 0 &&  max.compareTo(keys.get(i)) >= 0){
+                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+                }
+            }
+        } while(leafNode.getNextNode() != -1);
+
+        return rows;
+    }
+
+    /**
+     * min < keys <= max
+     * @param min Key min to compare
+     * @param max key max to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Tuple> upperRangeSearch(Key min, Key max) throws IOException{
+        LeafNode leafNode = search(min);
+
+        ArrayList<Tuple> rows = new ArrayList<>();
+        do {
+            ArrayList<Key> keys = leafNode.getKeys();
+            ArrayList<Tuple> tuples = leafNode.getTuples();
+            for (int i = 0; i < keys.size(); i++) {
+                if (min.compareTo(keys.get(i)) < 0 &&  max.compareTo(keys.get(i)) >= 0){
+                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+                }
+            }
+        } while(leafNode.getNextNode() != -1);
+
+        return rows;
+    }
+
+    /**
+     * min <= keys <= max
+     * @param min Key min to compare
+     * @param max key max to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Tuple> lowerRangeSearch(Key min, Key max) throws IOException{
+        LeafNode leafNode = search(min);
+
+        ArrayList<Tuple> rows = new ArrayList<>();
+        do {
+            ArrayList<Key> keys = leafNode.getKeys();
+            ArrayList<Tuple> tuples = leafNode.getTuples();
+            for (int i = 0; i < keys.size(); i++) {
+                if (min.compareTo(keys.get(i)) <= 0 &&  max.compareTo(keys.get(i)) > 0){
+                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+                }
+            }
+        } while(leafNode.getNextNode() != -1);
+
+        return rows;
+    }
+
+
+
+    /**
+     *  min < keys < max
+     * @param min Key min to compare
+     * @param max key max to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Tuple> strictRangeSearch(Key min, Key max) throws IOException{
+        LeafNode leafNode = search(min);
+
+        ArrayList<Tuple> rows = new ArrayList<>();
+        do {
+            ArrayList<Key> keys = leafNode.getKeys();
+            ArrayList<Tuple> tuples = leafNode.getTuples();
+            for (int i = 0; i < keys.size(); i++) {
+                if (min.compareTo(keys.get(i)) < 0 &&  max.compareTo(keys.get(i)) > 0){
+                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+                }
+            }
+        } while(leafNode.getNextNode() != -1);
+
+        return rows;
+    }
+
+
+    /**
+     * Search for unique key
+     * @param key key that does not exist
+     * @return Leaf node to insert the key
+     * @throws IOException If there is some file error
+     * @throws InvalidParameterException If key already exists
+     */
     private LeafNode uniqueSearch(Key key) throws IOException, InvalidParameterException{
         file.seek(root);
         LeafNode leafNode = treeSearch(key);
@@ -371,8 +556,14 @@ public class BpTree {
         child2.writeToFile(file);
     }
 
-    
 
+    /**
+     * Method that prints the tree to the console
+     */
+    public void dump() throws IOException{
+        System.out.println("===== TREE DUMP =====");
+        file.seek(root);
+    }
 
 
 

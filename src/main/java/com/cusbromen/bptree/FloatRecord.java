@@ -16,6 +16,9 @@ public class FloatRecord implements Record {
         readFromFile(file);
     }
 
+    public Double getVal() {
+        return val;
+    }
 
     @Override
     public int compareTo(Record o) {

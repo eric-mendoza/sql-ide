@@ -17,6 +17,10 @@ public class DateRecord implements Record {
         readFromFile(file);
     }
 
+    public Date getVal() {
+        return val;
+    }
+
     @Override
     public int compareTo(Record o) {
         DateRecord rec = (DateRecord) o;

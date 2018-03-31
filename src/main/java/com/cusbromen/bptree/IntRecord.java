@@ -15,6 +15,9 @@ public class IntRecord implements Record {
         readFromFile(file);
     }
 
+    public Integer getVal() {
+        return val;
+    }
 
     @Override
     public int compareTo(Record o) {

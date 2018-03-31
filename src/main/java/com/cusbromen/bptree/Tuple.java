@@ -3,6 +3,7 @@ package com.cusbromen.bptree;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class Tuple {
     private long size;
@@ -76,6 +77,51 @@ public class Tuple {
     public void add(Record record) {
         records.add(record);
         size += record.size();
+    }
+
+
+    /**
+     * Get column as int
+     * @param columnIndex  index of the column to extract
+     * @return column as int
+     */
+    public int getInt(int columnIndex) {
+        return ((IntRecord) records.get(columnIndex)).getVal();
+    }
+
+    /**
+     * Get column as char
+     * @param columnIndex  index of the column to extract
+     * @return column as char array
+     */
+    public char[] getChars(int columnIndex) {
+        return ((CharRecord) records.get(columnIndex)).getVal();
+    }
+
+
+
+    /**
+     * Get column as  date
+     * @param columnIndex  index of the column to extract
+     * @return column as date record
+     */
+    public Date getDate(int columnIndex) {
+        return ((DateRecord) records.get(columnIndex)).getVal();
+    }
+
+
+    /**
+     * Get column as float
+     * @param columnIndex  index of the column to extract
+     * @return column as  double
+     */
+    public double getFloat(int columnIndex) {
+        return ((FloatRecord) records.get(columnIndex)).getVal();
+    }
+
+
+    public ArrayList<Record> getRecords() {
+        return records;
     }
 
     public long size() {
