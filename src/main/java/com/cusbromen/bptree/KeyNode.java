@@ -1,5 +1,7 @@
 package com.cusbromen.bptree;
 
+import org.atmosphere.cpr.Action;
+
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
@@ -102,6 +104,30 @@ public class KeyNode extends Node {
         file.seek(file.getFilePointer() + 8);
         file.writeInt(keys.size());
 
+    }
+
+
+    public void dump(String ident, ArrayList<Type> keyTypes,
+                     ArrayList<Type> recordTypes,
+                     RandomAccessFile file) throws IOException{
+        System.out.println(ident + "----- KEY NODE " + this.loc() + " -----");
+        System.out.println(ident + "Location: " + this.loc());
+        System.out.println(ident + "Number of Records: " + this.getKeys().size());
+        System.out.println(ident + "Available Space: " + this.availableSpace);
+        System.out.println(ident + "Parent: " + this.parent);
+        System.out.println(ident + "Number of childs: " + this.getChilds().size());
+        System.out.println(ident + "---------------------------");
+        ident += "\t\t";
+        for (Long c : childs) {
+            if (c > 0) {
+                file.seek(c);
+                if(file.readBoolean()) {
+                    (new LeafNode(keyTypes, recordTypes, file)).dump(ident);
+                }else {
+                    (new KeyNode(keyTypes, file)).dump(ident, keyTypes, recordTypes, file);
+                }
+            }
+        }
     }
 
     public ArrayList<Key> getKeys() {

@@ -579,7 +579,39 @@ public class BpTree {
      */
     public void dump() throws IOException{
         System.out.println("===== TREE DUMP =====");
+        System.out.println("Blocksize: " + this.blockSize);
+        System.out.println("Root location: " + this.root);
+        System.out.print("Primary key types: ");
+        for (Type t : keyTypes) {
+            switch (t) {
+                case INT: System.out.print(" INT");break;
+                case FLOAT: System.out.print(" FLOAT");break;
+                case CHARS: System.out.print(" CHAR[]");break;
+                case DATE: System.out.print(" DATE");break;
+            }
+
+        }
+        System.out.println();
+        System.out.print("Row columns types: ");
+        for (Type t : recordTypes) {
+            switch (t) {
+                case INT: System.out.print(" INT");break;
+                case FLOAT: System.out.print(" FLOAT");break;
+                case CHARS: System.out.print(" CHAR[]");break;
+                case DATE: System.out.print(" DATE");break;
+            }
+
+        }
+        System.out.println("\nNodes:\n");
         file.seek(root);
+        if (file.readBoolean()) {
+            LeafNode node = new LeafNode(keyTypes, recordTypes, file);
+            node.dump("\t\t");
+        } else {
+            KeyNode node = new KeyNode(keyTypes, file);
+            node.dump("\t\t", keyTypes, recordTypes, file);
+        }
+        System.out.println("=====================");
     }
 
 

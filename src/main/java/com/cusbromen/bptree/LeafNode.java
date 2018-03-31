@@ -138,6 +138,17 @@ public class LeafNode extends Node{
     }
 
 
+    public void dump(String ident) {
+        System.out.println(ident + "----- LEAF NODE " + this.loc() + " -----");
+        System.out.println(ident + "Location: " + this.loc());
+        System.out.println(ident + "Number of Records: " + this.getKeys().size());
+        System.out.println(ident + "Available Space: " + this.availableSpace);
+        System.out.println(ident + "Parent: " + this.parent);
+        System.out.println(ident + "Prev Node: " + this.prevNode);
+        System.out.println(ident + "Next Node: " + this.nextNode);
+        System.out.println(ident + "---------------------------");
+    }
+
     public long getAvailableSpace() {
         return availableSpace;
     }
