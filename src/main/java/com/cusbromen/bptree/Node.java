@@ -1,5 +1,9 @@
 package com.cusbromen.bptree;
 
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
+
 public abstract class Node {
 
     protected long parent;
@@ -25,6 +29,13 @@ public abstract class Node {
     public long loc() {
         return head - 1;
     }
+
+    public void readFromFile(ArrayList<Type> keyTypes, ArrayList<Type> types,
+                             RandomAccessFile file) throws IOException {}
+
+    public void readFromFile(ArrayList<Type> types, RandomAccessFile file) throws IOException {}
+
+    public void writeToFile(RandomAccessFile file) throws IOException {}
 
     /**
      * Get parent

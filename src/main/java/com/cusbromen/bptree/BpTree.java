@@ -226,7 +226,6 @@ public class BpTree {
             ArrayList<Key> keys = leafNode.getKeys();
             ArrayList<Tuple> tuples = leafNode.getTuples();
             int firstNodeSize = keys.size() / 2;
-            int keyIndexToPush = keys.size() - firstNodeSize;
             ArrayList<Key> firstNodeKeys = new ArrayList<>();
             ArrayList<Tuple> firstNodeRecords = new ArrayList<>();
 
@@ -263,7 +262,7 @@ public class BpTree {
 
 
 
-            splitParents(parent, keys.get(keyIndexToPush),
+            splitParents(parent, keys.get(firstNodeSize),
                     leafNode, nextNode, keys.size());
 
 
@@ -282,8 +281,8 @@ public class BpTree {
      * @param maxDegree max degree of the parents
      * @throws IOException if something goes wrong
      */
-    private void splitParents(long parent, Key key, LeafNode child1,
-                              LeafNode child2, int maxDegree) throws IOException{
+    private void splitParents(long parent, Key key, Node child1,
+                              Node child2, int maxDegree) throws IOException{
 
         // Parent does not exist
         if (parent < 0) {
@@ -312,14 +311,53 @@ public class BpTree {
 
             // Check if parent needs to be splitted
             if (keyNode.getKeys().size() == maxDegree) {
-                int x = 0;
-                int y = 0;
+                int newSize = maxDegree / 2;
+                int otherHalf = maxDegree - newSize;
+                ArrayList<Key> keys  = keyNode.getKeys();
+                ArrayList<Long> childs = keyNode.getChilds();
+
+                ArrayList<Key> leftNodeKeys = new ArrayList<>();
+                ArrayList<Key> rightNodeKeys = new ArrayList<>();
+                ArrayList<Long> leftNodeChilds = new ArrayList<>();
+                ArrayList<Long> rightNodeChilds = new ArrayList<>();
+                for (int i = 0; i < maxDegree; i++) {
+                    if (i < newSize) {
+                        leftNodeKeys.add(keys.get(i));
+                        leftNodeChilds.add(childs.get(i));
+                    }else if (i > otherHalf){
+                        rightNodeKeys.add(keys.get(i));
+                        rightNodeChilds.add(childs.get(i));
+                    }
+                }
+                leftNodeChilds.add(childs.get(childs.size() - 2));
+
+                rightNodeKeys.add(key);
+                rightNodeChilds.add(child1.loc());
+                rightNodeChilds.add(child2.loc());
+
+                keyNode.setKeys(leftNodeKeys);
+                keyNode.setChilds(leftNodeChilds);
+                keyNode.setAvailableSpace(blockSize - 1);
+
+
+                parent = nextInsert;
+                file.seek(nextInsert);
+                file.writeBoolean(false);
+                KeyNode newKeyNode = new KeyNode(blockSize - 1);
+                newKeyNode.setHead(nextInsert + 1);
+                newKeyNode.setKeys(rightNodeKeys);
+                newKeyNode.setChilds(rightNodeChilds);
+                nextInsert += blockSize;
+
+
+                splitParents(keyNode.getParent(), keys.get(newSize), keyNode,
+                        newKeyNode, maxDegree);
+
+
             }else {
                 // Simply insert if not
                 keyNode.getChilds().add(child2.loc());
                 keyNode.add(key, child2.loc(), file);
-
-
             }
         }
 
@@ -331,9 +369,12 @@ public class BpTree {
         file.seek(child2.loc() + 1);
         child2.setParent(parent);
         child2.writeToFile(file);
-
-
     }
+
+    
+
+
+
 
 
 

@@ -45,6 +45,7 @@ public class LeafNode extends Node{
      * @param file File to write to
      * @throws IOException if there is some problem writing on file
      */
+    @Override
     public void writeToFile(RandomAccessFile file) throws IOException{
         head = file.getFilePointer();
         file.seek(head + 8);
@@ -74,6 +75,7 @@ public class LeafNode extends Node{
      * @param file file to read from
      * @throws IOException if there is some problem reading
      */
+    @Override
     public void readFromFile(ArrayList<Type> keyTypes, ArrayList<Type> types,
                              RandomAccessFile file) throws IOException{
         keys = new ArrayList<>();
