@@ -427,7 +427,7 @@ public class BpTree {
             long parent = leafNode.getParent();
             ArrayList<Key> keys = leafNode.getKeys();
             ArrayList<Tuple> tuples = leafNode.getTuples();
-            int firstNodeSize = keys.size() / 2;
+            int firstNodeSize = (keys.size() + 1) / 2;
             ArrayList<Key> firstNodeKeys = new ArrayList<>();
             ArrayList<Tuple> firstNodeRecords = new ArrayList<>();
 
@@ -513,8 +513,7 @@ public class BpTree {
 
             // Check if parent needs to be splitted
             if (keyNode.getKeys().size() == maxDegree) {
-                int newSize = maxDegree / 2;
-                int otherHalf = maxDegree - newSize;
+                int newSize = (maxDegree + 1) / 2;
                 ArrayList<Key> keys  = keyNode.getKeys();
                 ArrayList<Long> childs = keyNode.getChilds();
 
@@ -526,7 +525,7 @@ public class BpTree {
                     if (i < newSize) {
                         leftNodeKeys.add(keys.get(i));
                         leftNodeChilds.add(childs.get(i));
-                    }else if (i > otherHalf){
+                    }else if (i > newSize){
                         rightNodeKeys.add(keys.get(i));
                         rightNodeChilds.add(childs.get(i));
                     }
