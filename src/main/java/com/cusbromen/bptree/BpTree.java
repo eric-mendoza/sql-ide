@@ -234,9 +234,10 @@ public class BpTree {
             for (int i = 0; i < keys.size(); i++) {
                 rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
             }
-            if (leafNode.getNextNode() != -1)
-                file.seek(leafNode.getNextNode());
-        }while (leafNode.getNextNode() != -1);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+            }
+        }while (leafNode.getNextNode() > 0);
 
         return rows;
 
@@ -299,7 +300,11 @@ public class BpTree {
                     rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
                 }
             }
-        } while(leafNode.getNextNode() != -1);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() > 0);
 
         return rows;
     }
@@ -323,13 +328,17 @@ public class BpTree {
                     rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
                 }
             }
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
         } while(leafNode.getNextNode() != -1);
 
         return rows;
     }
 
     /**
-     * min <= keys <= max
+     * min <= keys < max
      * @param min Key min to compare
      * @param max key max to compare
      * @return All rows that satisfy criteria
@@ -346,6 +355,10 @@ public class BpTree {
                 if (min.compareTo(keys.get(i)) <= 0 &&  max.compareTo(keys.get(i)) > 0){
                     rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
                 }
+            }
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
             }
         } while(leafNode.getNextNode() != -1);
 
@@ -372,6 +385,10 @@ public class BpTree {
                 if (min.compareTo(keys.get(i)) < 0 &&  max.compareTo(keys.get(i)) > 0){
                     rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
                 }
+            }
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
             }
         } while(leafNode.getNextNode() != -1);
 
@@ -564,6 +581,9 @@ public class BpTree {
         System.out.println("===== TREE DUMP =====");
         file.seek(root);
     }
+
+
+
 
 
 
