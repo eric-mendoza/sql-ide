@@ -32,4 +32,9 @@ public class IntRecord implements Record {
     public void readFromFile(RandomAccessFile file) throws IOException {
         val = file.readInt();
     }
+
+    @Override
+    public long size() {
+        return 4;
+    }
 }

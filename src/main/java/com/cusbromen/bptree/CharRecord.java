@@ -46,4 +46,9 @@ public class CharRecord implements Record {
             val[i] = file.readChar();
         }
     }
+
+    @Override
+    public long size() {
+        return 2 * val.length + 4;
+    }
 }

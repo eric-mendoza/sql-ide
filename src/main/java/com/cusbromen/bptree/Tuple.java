@@ -5,6 +5,7 @@ import java.io.RandomAccessFile;
 import java.util.ArrayList;
 
 public class Tuple {
+    private long size;
     protected ArrayList<Record> records;
 
     /**
@@ -41,19 +42,27 @@ public class Tuple {
         for (Type type : types) {
             switch (type) {
                 case INT: {
-                    records.add(new IntRecord(file));
+                    IntRecord rec = new IntRecord(file);
+                    records.add(rec);
+                    size += rec.size();
                     break;
                 }
                 case FLOAT:{
-                    records.add(new FloatRecord(file));
+                    FloatRecord rec = new FloatRecord(file);
+                    records.add(rec);
+                    size += rec.size();
                     break;
                 }
                 case CHARS: {
-                    records.add(new CharRecord(file));
+                    CharRecord rec = new CharRecord(file);
+                    records.add(rec);
+                    size += rec.size();
                     break;
                 }
                 case DATE: {
-                    records.add(new DateRecord(file));
+                    DateRecord rec = new DateRecord(file);
+                    records.add(rec);
+                    size += rec.size();
                     break;
                 }
             }
@@ -66,5 +75,10 @@ public class Tuple {
      */
     public void add(Record record) {
         records.add(record);
+        size += record.size();
+    }
+
+    public long size() {
+        return size;
     }
 }

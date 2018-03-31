@@ -33,4 +33,9 @@ public class DateRecord implements Record {
     public void readFromFile(RandomAccessFile file) throws IOException{
         val = new Date(file.readLong());
     }
+
+    @Override
+    public long size() {
+        return 8;
+    }
 }

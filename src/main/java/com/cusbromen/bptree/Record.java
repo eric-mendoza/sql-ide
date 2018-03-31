@@ -18,5 +18,10 @@ public interface Record extends Comparable<Record>{
      */
     void readFromFile(RandomAccessFile file) throws IOException;
 
+    /**
+     * Size of the record
+     * @return the size of the record in bytes
+     */
+    long size();
 
 }

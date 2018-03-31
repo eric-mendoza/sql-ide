@@ -32,4 +32,9 @@ public class FloatRecord implements Record {
     public void readFromFile(RandomAccessFile file) throws IOException {
         val = file.readDouble();
     }
+
+    @Override
+    public long size() {
+        return 8;
+    }
 }

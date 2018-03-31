@@ -10,8 +10,6 @@ public class LeafNode extends Node{
     // Properties of a B+ tree
     private long nextNode;
     private long prevNode;
-    private long head;
-    private long back;
 
     // Leaf nodes can store a lot of tuples
     private ArrayList<Key> keys;
@@ -26,6 +24,7 @@ public class LeafNode extends Node{
         tuples = new ArrayList<>();
         nextNode = -1;
         prevNode = -1;
+        this.parent = -1;
     }
 
     /**
@@ -47,12 +46,12 @@ public class LeafNode extends Node{
      * @throws IOException if there is some problem writing on file
      */
     public void writeToFile(RandomAccessFile file) throws IOException{
-        long diff = file.getFilePointer();
-        long firstPos = diff;
-        file.writeLong(availableSpace);
+        head = file.getFilePointer();
+        file.seek(head + 8);
+        file.writeLong(parent);
         file.writeLong(prevNode);
         file.writeLong(nextNode);
-        file.writeLong(firstPos);
+        file.writeLong(head);
         file.writeInt(tuples.size());
         for (int i = 0; i < tuples.size(); i++) {
             keys.get(i).writeToFile(file);
@@ -61,8 +60,8 @@ public class LeafNode extends Node{
 
         back = file.getFilePointer();
         // Bytes written
-        diff = back - diff;
-        file.seek(firstPos);
+        long diff = back - head;
+        file.seek(head);
         availableSpace -= diff;
         file.writeLong(availableSpace);
         file.seek(back);
@@ -80,6 +79,7 @@ public class LeafNode extends Node{
         keys = new ArrayList<>();
         tuples = new ArrayList<>();
         availableSpace = file.readLong();
+        parent = file.readLong();
         prevNode = file.readLong();
         nextNode = file.readLong();
         head = file.readLong();
@@ -114,6 +114,7 @@ public class LeafNode extends Node{
     private void updateHeader(RandomAccessFile file) throws IOException {
         file.seek(head);
         file.writeLong(availableSpace);
+        file.writeLong(parent);
         file.writeLong(prevNode);
         file.writeLong(nextNode);
         file.seek(file.getFilePointer() + 8);
@@ -147,7 +148,28 @@ public class LeafNode extends Node{
         return prevNode;
     }
 
+
+    public ArrayList<Key> getKeys() {
+        return keys;
+    }
+
     public ArrayList<Tuple> getTuples() {
         return tuples;
+    }
+
+    public void setNextNode(long nextNode) {
+        this.nextNode = nextNode;
+    }
+
+    public void setPrevNode(long prevNode) {
+        this.prevNode = prevNode;
+    }
+
+    public void setKeys(ArrayList<Key> keys) {
+        this.keys = keys;
+    }
+
+    public void setTuples(ArrayList<Tuple> tuples) {
+        this.tuples = tuples;
     }
 }

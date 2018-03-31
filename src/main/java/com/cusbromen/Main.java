@@ -39,7 +39,7 @@ public class Main {
             primaryTypes.add(Type.CHARS);
             primaryTypes.add(Type.FLOAT);
             BpTree bpTree = new BpTree("test.bin", primaryTypes,
-                    types, 4096);
+                    types, 128);
             bpTree.close();
 
             // File already created
@@ -54,6 +54,10 @@ public class Main {
             Tuple row = new Tuple();
             row.add(new CharRecord(bb));
             row.add(new IntRecord(4));
+            bpTree1.insert(k, row);
+            bpTree1.insert(k, row);
+            bpTree1.insert(k, row);
+            bpTree1.insert(k, row);
             bpTree1.insert(k, row);
             bpTree1.insert(k, row);
         }catch (Exception ex) {
