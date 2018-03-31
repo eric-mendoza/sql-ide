@@ -79,11 +79,11 @@ public class SymbolTableHashMap {
         }
     }
 
-    public int renameTable(String currentDb, String oldName, String newName){
+    public int renameTable(String oldName, String newName){
         verboseParser.add(">> Will try to rename metadata for table " + oldName);
 
-        if (currentDb != null){
-            String dbPath = "metadata/" + currentDb + "/" + currentDb + ".json";
+        if (dbInUseId != null){
+            String dbPath = "metadata/" + dbInUseId + "/" + dbInUseId + ".json";
             File db = new File(dbPath);
             verboseParser.add(">> Locating file " + dbPath);
 
@@ -95,15 +95,66 @@ public class SymbolTableHashMap {
                     verboseParser.add(">> Database already has " + newName + "!");
                     return 2;
                 } else {
-                    Object info = dbInUseMetadata.get(oldName);
+                    // Change own info
+                    JSONObject info = (JSONObject) dbInUseMetadata.get(oldName);
                     verboseParser.add(">> Using info " + info.toString());
                     dbInUseMetadata.remove(oldName);
                     dbInUseMetadata.put(newName, info);
+
+
+                    // Change info of tables referenced by this table
+                    JSONObject allConstraints = (JSONObject) info.get("constraints");
+                    Set<String> constraintsNames = allConstraints.keySet();
+                    ArrayList<String[]> tablesToChangeIngoingReferenced = new ArrayList<>(); // (TableReferenced, constraintId)
+
+                    for (String constraintId : constraintsNames) {
+                        if (constraintId.startsWith("FK_")){
+                            JSONObject constraint = (JSONObject) allConstraints.get(constraintId);
+                            String referencedTable = (String) constraint.get("referencedTable");
+                            tablesToChangeIngoingReferenced.add(new String[]{referencedTable, constraintId});
+                        }
+                    }
+
+                    // Make changes on referenced tables
+                    for (String[] tuple : tablesToChangeIngoingReferenced) {
+                        // Get table
+                        JSONObject referencedTable = (JSONObject) dbInUseMetadata.get(tuple[0]);
+                        JSONObject ingoingReferences = (JSONObject) referencedTable.get("ingoingReferences");
+
+                        // Update constraint
+                        ingoingReferences.put(tuple[1], newName);
+                    }
+
+                    // Change info of tables Change info of tables that reference this table
+                    JSONObject ingoingReferences = (JSONObject) info.get("ingoingReferences");
+                    if (ingoingReferences != null){
+                        Set<String> constraintsIds = ingoingReferences.keySet();
+                        tablesToChangeIngoingReferenced = new ArrayList<>(); // (TableReferenced, constraintId)
+
+                        for (String constraintId : constraintsIds) {
+                            String tableId = (String) ingoingReferences.get(constraintId);
+                            tablesToChangeIngoingReferenced.add(new String[]{tableId, constraintId});
+                        }
+
+                        // Make changes on referenced tables
+                        for (String[] tuple : tablesToChangeIngoingReferenced) {
+                            // Get table
+                            JSONObject referencedTable = (JSONObject) dbInUseMetadata.get(tuple[0]);
+                            JSONObject tableConstraints = (JSONObject) referencedTable.get("constraints");
+                            JSONObject constraint = (JSONObject) tableConstraints.get(tuple[1]);
+
+                            // Update constraint
+                            constraint.put("referencedTable", newName);
+                        }
+                    }
+
+
                     verboseParser.add(">> Changed info to: " + dbInUseMetadata.toString());
                     PrintWriter writer = new PrintWriter(db, "UTF-8");
                     writer.write(dbInUseMetadata.toJSONString());
                     writer.close();
                     verboseParser.add(">> Wrote to file!");
+
                     return 1;
                 }
             } catch (Exception e) {
@@ -191,6 +242,8 @@ public class SymbolTableHashMap {
                         }
 
                         inRef.put(newReferencedTableTuple[1], tableName);  // add the new reference <referencedTable, constraintName>
+                        referencedTable.put("ingoingReferences", inRef);  // Update references
+                        //dbInUseMetadata.put(newReferencedTableTuple[0], referencedTable);  // Update table in dbMetadata
                     }
                 }
 
@@ -678,5 +731,15 @@ public class SymbolTableHashMap {
         } catch (IOException e){
             return 0;
         }
+    }
+
+    /**
+     * This method is going to be used while inserting rows. It returns the names and types of the columns in a table.
+     * This method requires the table to exist and to have a dataBase in use.
+     * @param tableId analyzed table
+     * @return A list of arrays of length 2, being their values the next ones
+     */
+    public ArrayList<String[]> getTableColumnTypes(String tableId){
+        return new ArrayList<>();
     }
 }
