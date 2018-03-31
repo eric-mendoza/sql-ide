@@ -29,7 +29,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     private ArrayList<String[]> newReferencedTables; // it's going to be used to save referenced tables temporary
     private SymbolTableHashMap symbolTable;
     private String lastDbUsedPath = "metadata/lastDbUsed";
-    private boolean syntaxError, addingConstraint;
+    private boolean syntaxError, addingConstraint, primaryKeyCreated, columnNullable;
     private Layout layout;
 
     public Visitor() {
@@ -242,7 +242,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             String oldName = ctx.ID().getSymbol().getText();
             String newName = visit(ctx.alter_rename());
 
-            int renameResult = symbolTable.renameTable(dbInUse, oldName, newName);
+            int renameResult = symbolTable.renameTable(oldName, newName);
 
             if (renameResult == 0) {
                 semanticErrorsList.add("Error: You haven't selected a DB yet, table wasn't renamed. Line: " + ctx.start.getLine());
@@ -251,11 +251,17 @@ public class Visitor extends SqlBaseVisitor<String> {
             } else if (renameResult == 2) {
                 semanticErrorsList.add("The table <strong>" + newName + "</strong> already exists in database <strong>" + dbInUse + "</strong>.");
             } else if (renameResult == 3) {
-                semanticErrorsList.add("The table y<strong>" + oldName + "</strong> does not exist in database <strong>" + dbInUse + "</strong>.");
+                semanticErrorsList.add("The table <strong>" + oldName + "</strong> does not exist in database <strong>" + dbInUse + "</strong>.");
             }
 
         } else {
             newTableName = ctx.ID().getSymbol().getText();
+
+            if (symbolTable.getTable(newTableName) == null){
+                semanticErrorsList.add("Error: Table <strong>" + newTableName + "</strong> doesn't exists. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
             String result = visit(ctx.alter_action());
             if (result.equals("error")) {
                 semanticErrorsList.add("Error: Couldn't alter table <strong>" + newTableName + "</strong>. Line: " + ctx.start.getLine());
@@ -599,6 +605,8 @@ public class Visitor extends SqlBaseVisitor<String> {
     /** ((column_constraint)? ('CONSTRAINT' keys_constraint)? | ('CONSTRAINT' keys_constraint)? (column_constraint)?)*/
     @Override
     public String visitConstraint(SqlParser.ConstraintContext ctx) {
+        columnNullable = false;
+
         // Visit children
         if (ctx.column_constraint() != null){
             String result = visit(ctx.column_constraint());
@@ -617,6 +625,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     @Override
     public String visitColumn_constraint(SqlParser.Column_constraintContext ctx) {
         // Add constraint to column
+        columnNullable = true;
         if (!addingConstraint) newColumn.put("nullable", "false");
         else {
             semanticErrorsList.add("Error: You can't apply NOT NULL to a table. Line: " + ctx.getStart().getLine());
@@ -629,6 +638,12 @@ public class Visitor extends SqlBaseVisitor<String> {
     @Override
     public String visitPrimaryKey(SqlParser.PrimaryKeyContext ctx) {
         List<TerminalNode> ids = ctx.ID();
+
+        // Verify if PK is NOT NULLABLE
+        if (!columnNullable){
+            semanticErrorsList.add("Error: The primary key must be declared as NOT NULL. Line: " + ctx.getStart().getLine());
+            return "error";
+        }
 
         // Analyse the constraint name, it should begin with PK_ and end with table name
         String constraintId = ids.get(0).getSymbol().getText();
