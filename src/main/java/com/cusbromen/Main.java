@@ -36,30 +36,46 @@ public class Main {
             types.add(Type.CHARS);
             types.add(Type.INT);
             ArrayList<Type> primaryTypes = new ArrayList<>();
-            primaryTypes.add(Type.CHARS);
             primaryTypes.add(Type.FLOAT);
             BpTree bpTree = new BpTree("test.bin", primaryTypes,
-                    types, 128);
+                    types, 100);
             bpTree.close();
 
             // File already created
             BpTree bpTree1 = new BpTree("test.bin");
-            Key k = new Key();
+
             char[] bb = new char[3];
             bb[0] = 'A';
             bb[1] = 'C';
             bb[2] = 'D';
-            k.add(new CharRecord(bb));
-            k.add(new FloatRecord(4.0));
+
             Tuple row = new Tuple();
             row.add(new CharRecord(bb));
             row.add(new IntRecord(4));
+
+            Key k = new Key();
+            k.add(new FloatRecord(4.0));
             bpTree1.insert(k, row);
-            bpTree1.insert(k, row);
-            bpTree1.insert(k, row);
-            bpTree1.insert(k, row);
-            bpTree1.insert(k, row);
-            bpTree1.insert(k, row);
+
+            Key k1 = new Key();
+            k1.add(new FloatRecord(4.0));
+            bpTree1.insert(k1, row);
+
+            Key k2 = new Key();
+            k2.add(new FloatRecord(5.0));
+            bpTree1.insert(k2, row);
+
+            Key k3 = new Key();
+            k3.add(new FloatRecord(6.0));
+            bpTree1.insert(k3, row);
+
+            Key k4 = new Key();
+            k4.add(new FloatRecord(7.0));
+            bpTree1.insert(k4, row);
+
+            Key k5 = new Key();
+            k5.add(new FloatRecord(8.0));
+            bpTree1.insert(k5, row);
         }catch (Exception ex) {
             ex.printStackTrace();
         }

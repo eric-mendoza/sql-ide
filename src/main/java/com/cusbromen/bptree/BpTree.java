@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 
 public class BpTree {
@@ -199,13 +200,24 @@ public class BpTree {
         return null;
     }
 
+
+    private LeafNode uniqueSearch(Key key) throws IOException, InvalidParameterException{
+        file.seek(root);
+        LeafNode leafNode = treeSearch(key);
+        for (Key k : leafNode.getKeys()){
+            if (k.compareTo(key) == 0)
+                throw new InvalidParameterException("Key must be unique");
+        }
+        return leafNode;
+    }
+
     /**
      * Insertion of char leaf into the B+ tree
      * @param row Table row to insert
      */
     public void insert(Key key, Tuple row) throws IOException {
 
-        LeafNode leafNode = search(key);
+        LeafNode leafNode = uniqueSearch(key);
         boolean isFull = leafNode.getAvailableSpace()
                 - (key.size() + row.size()) < 0;
         if (isFull) {
