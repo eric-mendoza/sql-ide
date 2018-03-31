@@ -67,6 +67,7 @@ public class KeyNode extends Node {
      * @param file file to restore from
      * @throws IOException if something goes wrong
      */
+    @Override
     public void readFromFile(ArrayList<Type> types, RandomAccessFile file) throws IOException {
         availableSpace = file.readLong();
         parent = file.readLong();
@@ -109,5 +110,13 @@ public class KeyNode extends Node {
 
     public ArrayList<Long> getChilds() {
         return childs;
+    }
+
+    public void setKeys(ArrayList<Key> keys) {
+        this.keys = keys;
+    }
+
+    public void setChilds(ArrayList<Long> childs) {
+        this.childs = childs;
     }
 }

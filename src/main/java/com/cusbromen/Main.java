@@ -54,7 +54,7 @@ public class Main {
             row.add(new IntRecord(4));
 
             Key k = new Key();
-            k.add(new FloatRecord(4.0));
+            k.add(new FloatRecord(3.0));
             bpTree1.insert(k, row);
 
             Key k1 = new Key();
