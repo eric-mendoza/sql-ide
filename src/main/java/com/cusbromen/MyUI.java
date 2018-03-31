@@ -6,11 +6,15 @@ import javax.servlet.annotation.WebServlet;
 import com.cusbromen.antlr.CustomErrorListener;
 import com.cusbromen.antlr.SqlLexer;
 import com.cusbromen.antlr.SqlParser;
+import com.cusbromen.bptree.Tuple;
 import com.cusbromen.semanticControl.Visitor;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.data.TreeData;
+import com.vaadin.data.provider.DataProvider;
+import com.vaadin.data.provider.ListDataProvider;
 import com.vaadin.data.provider.TreeDataProvider;
+import com.vaadin.event.ShortcutAction;
 import com.vaadin.icons.VaadinIcons;
 import com.vaadin.server.*;
 import com.vaadin.shared.Position;
@@ -22,6 +26,7 @@ import com.vaadin.ui.Label;
 import com.vaadin.ui.Panel;
 import com.vaadin.ui.TextArea;
 import com.vaadin.ui.Window;
+import com.vaadin.ui.renderers.HtmlRenderer;
 import org.antlr.v4.gui.TreeViewer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -39,9 +44,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 
 /**
  * IDE UI for the Decaf Compiler
@@ -65,13 +69,9 @@ public class MyUI extends UI {
     private VerticalLayout consolePanelLayout;
     private boolean verboseMode;
 
-    // Grid to show data from queries
-    private Grid<String> showDataGrid;
-
     @Override
     protected void init(VaadinRequest vaadinRequest) {
         visitor = new Visitor();
-        showDataGrid = new Grid<>();
         verboseMode = false;
         /* horizontal layout for input and console */
         HorizontalLayout hLayout = new HorizontalLayout();
@@ -85,6 +85,8 @@ public class MyUI extends UI {
         final VerticalLayout layout = new VerticalLayout();
         consolePanelLayout = new VerticalLayout();
         consolePanelLayout.setSpacing(false);
+
+        visitor.setConsolePanelLayout(consolePanelLayout);
 
         final VerticalLayout consoleLayout = new VerticalLayout();
         consoleLayout.setHeight(100.0f, Sizeable.Unit.PERCENTAGE);
@@ -137,9 +139,10 @@ public class MyUI extends UI {
         /* Buttons for compilation, tree and to clear the console */
         Button compileBtn = new Button();
         compileBtn.setIcon(VaadinIcons.PLAY);
-        compileBtn.setDescription("Execute query");
+        compileBtn.setDescription("Execute query (CTRL + ENTER)");
         compileBtn.setSizeFull();
         compileBtn.setStyleName("primary");
+        compileBtn.setClickShortcut(ShortcutAction.KeyCode.ENTER, ShortcutAction.ModifierKey.CTRL);
 
         Button clearEditorBtn = new Button();
         clearEditorBtn.setIcon(VaadinIcons.TRASH);
@@ -435,18 +438,4 @@ public class MyUI extends UI {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    // TODO to show data from trees
-    private void addDataToGrid() {
-        showDataGrid = new Grid<>();
-        showDataGrid.setWidth("100%");
-        showDataGrid.setHeight("100%");
-
-        List<String> lst = Arrays.asList("pupusa", "kakusa", "pepolio");
-        showDataGrid.clearSortOrder();
-        showDataGrid.setItems(lst);
-        showDataGrid.clearSortOrder();
-
-        showDataGrid.addColumn(String::toString).setCaption("Col1");
-        consolePanelLayout.addComponent(showDataGrid);
-    }
 }

@@ -1,12 +1,15 @@
 package com.cusbromen.semanticControl;
 import com.cusbromen.antlr.SqlBaseVisitor;
 import com.cusbromen.antlr.SqlParser;
+import com.vaadin.data.provider.DataProvider;
+import com.vaadin.data.provider.ListDataProvider;
 import com.vaadin.icons.VaadinIcons;
 import com.vaadin.server.Page;
 import com.vaadin.server.Sizeable;
 import com.vaadin.shared.Position;
 import com.vaadin.shared.ui.ContentMode;
 import com.vaadin.ui.*;
+import com.vaadin.ui.renderers.HtmlRenderer;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
@@ -14,10 +17,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 
 @SuppressWarnings("unchecked") // JSON's fault
 public class Visitor extends SqlBaseVisitor<String> {
@@ -30,7 +30,8 @@ public class Visitor extends SqlBaseVisitor<String> {
     private SymbolTableHashMap symbolTable;
     private String lastDbUsedPath = "metadata/lastDbUsed";
     private boolean syntaxError, addingConstraint, primaryKeyCreated, columnNullable;
-    private Layout layout;
+    private Layout layout, consolePanelLayout;
+    private Grid<Queue<String>> showDataGrid;
 
     public Visitor() {
         this.semanticErrorsList = new ArrayList<>();
@@ -1220,6 +1221,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         this.layout = layout;
     }
 
+    public void setConsolePanelLayout(Layout layout) {
+        this.consolePanelLayout = layout;
+    }
+
     public void refreshInfoLists() {
         this.semanticErrorsList.clear();
         this.verboseParser.clear();
@@ -1227,4 +1232,62 @@ public class Visitor extends SqlBaseVisitor<String> {
     }
 
     public List<String> getVerboseParser() { return verboseParser;}
+
+    // TODO to show data from trees
+
+    /**
+     * To show data from a query in a table
+     * @param colNames, names for the columns, in order
+     * @param rowList, List of Queues, each Queue is a Row, must contain data in order according to the order of colNames
+     */
+    private void addDataToGrid(List<String> colNames, List<Queue<String>> rowList) {
+        showDataGrid = new Grid<>();
+        showDataGrid.setWidth("100%");
+
+        for (String colName : colNames) {
+            showDataGrid.addColumn(row -> row.poll(), new HtmlRenderer()).setCaption(colName);
+        }
+
+        ListDataProvider<Queue<String>> dataProvider = DataProvider.ofCollection(rowList);
+        showDataGrid.setDataProvider(dataProvider);
+
+        consolePanelLayout.addComponent(showDataGrid);
+
+        // TODO: ejemplo de como funciona mostrar los datos en la tabla borrar los comentarios al final de todo xD
+//        List<String> colNames = new ArrayList<>();
+//        colNames.add("Column 1");
+//        colNames.add("Column 2");
+//        colNames.add("Column 3");
+//
+//        for (String colName : colNames) {
+//            showDataGrid.addColumn(event -> event.poll(), new HtmlRenderer()).setCaption(colName);
+//        }
+//
+//        List<Queue<String>> rowList = new ArrayList<>();
+//
+//        Queue<String> row1 = new LinkedList<>();
+//        Queue<String> row2 = new LinkedList<>();
+//        Queue<String> row3 = new LinkedList<>();
+//
+//        row1.add("data1");
+//        row1.add("data2");
+//        row1.add("data3");
+//
+//        row2.add("data4");
+//        row2.add("data5");
+//        row2.add("data6");
+//
+//        row3.add("data7");
+//        row3.add("data8");
+//        row3.add("data9");
+//
+//        rowList.add(row1);
+//        rowList.add(row2);
+//        rowList.add(row3);
+//
+//        ListDataProvider<Queue<String>> dataProvider = DataProvider.ofCollection(rowList);
+//        showDataGrid.setDataProvider(dataProvider);
+//
+//        consolePanelLayout.addComponent(showDataGrid);
+    }
 }
