@@ -38,114 +38,135 @@ public class Main {
             // with primary key id.
 
 
-            // First we create an array with the primary Key types
-            ArrayList<Type> primaryTypes = new ArrayList<>();
-            primaryTypes.add(Type.INT);
-
-            // Then we create an array with the row types
-            ArrayList<Type> rowType = new ArrayList<>();
-            rowType.add(Type.CHARS);
-
-
-            // If table is not created CREATE TABLE
-            BpTree bpTree = new BpTree("Persona", primaryTypes,
-                    rowType, 4096);
-
-            bpTree.close();
-
-            // If table was already created INSERT INTO
-            bpTree = new BpTree("Persona");
-
-            Key key = new Key();
-            key.add(new IntRecord(1));
-
-            Tuple row = new Tuple();
-            // Assuming the parser generated a char[] of size 4
-            char[] val = new char[4];
-            val[0] = 'E';
-            val[1] = 'R';
-            val[2] = 'I';
-            val[3] = 'C';
-            row.add(new CharRecord(val));
-
-            bpTree.insert(key, row);
-
-            bpTree.close();
-
-            bpTree = new BpTree("Persona");
-
-            key = new Key();
-            key.add(new IntRecord(1));
-            // This a search
-            LeafNode leafNode = bpTree.search(key);
-            ArrayList<Key> kkk = leafNode.getKeys();
-            for (int i = 0; i < kkk.size(); i++) {
-                if (key.compareTo(kkk.get(i)) == 0) {
-                    Tuple rowISearched = leafNode.getTuples().get(i);
-
-                }
-            }
-
-
-
-
-//            // Create array with the row types
-//            ArrayList<Type> rowTypes = new ArrayList<>();
-//            rowTypes.add(Type.CHARS);
-//            rowTypes.add(Type.INT);
-//
-//            // Create array with the primary key types
+//            // First we create an array with the primary Key types
 //            ArrayList<Type> primaryTypes = new ArrayList<>();
-//            primaryTypes.add(Type.FLOAT);
+//            primaryTypes.add(Type.INT);
 //
-//            // Creating a new table
-//            BpTree bpTree = new BpTree("test.bin", primaryTypes,
-//                    rowTypes, 100);
-//            // Close the tree
+//            // Then we create an array with the row types
+//            ArrayList<Type> rowType = new ArrayList<>();
+//            rowType.add(Type.CHARS);
+//
+//
+//            // If table is not created CREATE TABLE
+//            BpTree bpTree = new BpTree("Persona", primaryTypes,
+//                    rowType, 4096);
+//
 //            bpTree.close();
 //
-//            // File already created
-//            BpTree bpTree1 = new BpTree("test.bin");
+//            // If table was already created INSERT INTO
+//            bpTree = new BpTree("Persona");
 //
-//            char[] bb = new char[3];
-//            bb[0] = 'A';
-//            bb[1] = 'C';
-//            bb[2] = 'D';
+//            Key key = new Key();
+//            key.add(new IntRecord(1));
 //
-//            // Create a row
 //            Tuple row = new Tuple();
-//            row.add(new CharRecord(bb));
-//            row.add(new IntRecord(4));
+//            // Assuming the parser generated a char[] of size 4
+//            char[] val = new char[4];
+//            val[0] = 'E';
+//            val[1] = 'R';
+//            val[2] = 'I';
+//            val[3] = 'C';
+//            row.add(new CharRecord(val));
 //
-//            Key k = new Key();
-//            k.add(new FloatRecord(3.0));
-//            bpTree1.insert(k, row);
+//            bpTree.insert(key, row);
 //
-//            Key k1 = new Key();
-//            k1.add(new FloatRecord(4.0));
-//            bpTree1.insert(k1, row);
+//            key = new Key();
+//            key.add(new IntRecord(2));
+//            bpTree.insert(key, row);
 //
-//            Key k2 = new Key();
-//            k2.add(new FloatRecord(5.0));
-//            bpTree1.insert(k2, row);
+//            ArrayList<Tuple> rrr = bpTree.all();
 //
-//            Key k3 = new Key();
-//            k3.add(new FloatRecord(6.0));
-//            bpTree1.insert(k3, row);
+//            bpTree.close();
 //
-//            Key k4 = new Key();
-//            k4.add(new FloatRecord(7.0));
-//            bpTree1.insert(k4, row);
+//            bpTree = new BpTree("Persona");
 //
-//            Key k5 = new Key();
-//            k5.add(new FloatRecord(8.0));
-//            bpTree1.insert(k5, row);
-//
-//            Key k6 = new Key();
-//            k6.add(new FloatRecord(7.0));
-//
-//            LeafNode node = bpTree1.search(k6);
+//            key = new Key();
+//            key.add(new IntRecord(1));
+//            // This a search
+//            Tuple rows = bpTree.equalSearch(key);
 
+
+            // Create array with the row types
+            ArrayList<Type> rowTypes = new ArrayList<>();
+            rowTypes.add(Type.CHARS);
+            rowTypes.add(Type.INT);
+
+            // Create array with the primary key types
+            ArrayList<Type> primaryTypes = new ArrayList<>();
+            primaryTypes.add(Type.FLOAT);
+
+            // Creating a new table
+            BpTree bpTree = new BpTree("test.bin", primaryTypes,
+                    rowTypes, 100); //180 rare case
+            // Close the tree
+            bpTree.close();
+
+            // File already created
+            BpTree bpTree1 = new BpTree("test.bin");
+
+            char[] bb = new char[3];
+            bb[0] = 'A';
+            bb[1] = 'C';
+            bb[2] = 'D';
+
+            // Create a row
+            Tuple row = new Tuple();
+            row.add(new CharRecord(bb));
+            row.add(new IntRecord(4));
+
+            Key k = new Key();
+            k.add(new FloatRecord(3.0));
+            bpTree1.insert(k, row);
+
+            Key k1 = new Key();
+            k1.add(new FloatRecord(7.0));
+            bpTree1.insert(k1, row);
+
+            Key k2 = new Key();
+            k2.add(new FloatRecord(4.0));
+            bpTree1.insert(k2, row);
+
+            Tuple rr = new Tuple();
+            rr.add(new CharRecord(bb));
+            rr.add(new IntRecord(5));
+            Key k3 = new Key();
+            k3.add(new FloatRecord(6.0));
+            bpTree1.insert(k3, rr);
+
+//            bpTree1.dump();
+
+            Key k4 = new Key();
+            k4.add(new FloatRecord(9.0));
+            bpTree1.insert(k4, row);
+
+            Key k5 = new Key();
+            k5.add(new FloatRecord(5.0));
+            bpTree1.insert(k5, row);
+
+//            bpTree1.dump();
+
+            Key k6 = new Key();
+            k6.add(new FloatRecord(10.0));
+            bpTree1.insert(k6, row);
+//            bpTree1.dump();
+            k6 = new Key();
+            k6.add(new FloatRecord(12.0));
+            bpTree1.insert(k6, row);
+//            bpTree1.dump();
+            k6 = new Key();
+            k6.add(new FloatRecord(11.0));
+            bpTree1.insert(k6, row);
+//            bpTree1.dump();
+
+            k6 = new Key();
+            k6.add(new FloatRecord(8.0));
+            bpTree1.insert(k6, row);
+            bpTree1.dump();
+
+            ArrayList<Tuple> rows = bpTree1.all();
+            Tuple tt = bpTree1.equalSearch(k3);
+
+            int x = 0;
         }catch (Exception ex) {
             ex.printStackTrace();
         }
