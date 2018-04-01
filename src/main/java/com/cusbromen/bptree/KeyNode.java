@@ -92,7 +92,6 @@ public class KeyNode extends Node {
      */
     public void add(Key k, long child, RandomAccessFile file) throws IOException{
         Utility.sortedInsert(keys, childs, k, child);
-        childs.add(child);
         file.seek(head);
         availableSpace -= k.size() + 8;
         file.writeLong(availableSpace);
@@ -143,7 +142,13 @@ public class KeyNode extends Node {
         this.keys = keys;
     }
 
-    public void setChilds(ArrayList<Long> childs) {
+    public void setChilds(ArrayList<Type> keyTypes, ArrayList<Type> recordTypes,
+                          ArrayList<Long> childs, RandomAccessFile file) throws IOException{
         this.childs = childs;
+        for (long child :
+                childs) {
+            file.seek(child + 9);
+            file.writeLong(head -1);
+        }
     }
 }

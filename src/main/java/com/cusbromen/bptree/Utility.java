@@ -18,18 +18,7 @@ public class Utility {
         pairs.add(p);
     }
 
-    /**
-     * Inserts a key in sorted order
-     * @param k key to insert
-     */
-    public static void sortedInsert(ArrayList<Key> keys, Key k) {
-        for (int i = 0; i < keys.size(); i++) {
-            if (k.compareTo(keys.get(i)) >= 0) continue;
-            keys.add(i, k);
-            return;
-        }
-        keys.add(k);
-    }
+
 
     /**
      * Inserts a key in sorted order

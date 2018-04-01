@@ -442,10 +442,7 @@ public class BpTree {
             }
 
 
-            // Write the first node
-            leafNode.setPairs(firstNodePairs);
-            leafNode.setAvailableSpace(blockSize - 1);
-            leafNode.setNextNode(nextInsert);
+
 
             // Write the second node
             file.seek(nextInsert);
@@ -454,7 +451,14 @@ public class BpTree {
             LeafNode nextNode = new LeafNode(blockSize - 1);
             nextNode.setHead(nextInsert + 1);
             nextNode.setPrevNode(leafNode.loc());
+            nextNode.setNextNode(leafNode.getNextNode());
             nextNode.setPairs(secondNodePairs);
+
+            // Write the first node
+            leafNode.setPairs(firstNodePairs);
+            leafNode.setAvailableSpace(blockSize - 1);
+            leafNode.setNextNode(nextInsert);
+
             nextInsert += blockSize;
 
             splitParents(parent, secondNodePairs.get(0).getKey(),
@@ -495,7 +499,8 @@ public class BpTree {
             file.writeBoolean(false);
             keyParent.writeToFile(file);
 
-            parent = nextInsert;
+            child1.setParent(nextInsert);
+            child2.setParent(nextInsert);
 
             nextInsert += blockSize;
 
@@ -509,9 +514,9 @@ public class BpTree {
             // Check if parent needs to be splitted
             if (keyNode.getKeys().size() == maxElements) {
                 ArrayList<Key> keys  = keyNode.getKeys();
-                Utility.sortedInsert(keys, key);
-                int newSize = (keys.size()) / 2;
                 ArrayList<Long> childs = keyNode.getChilds();
+                Utility.sortedInsert(keys, childs, key, child2.loc());
+                int newSize = (keys.size()) / 2;
 
                 ArrayList<Key> leftNodeKeys = new ArrayList<>();
                 ArrayList<Key> rightNodeKeys = new ArrayList<>();
@@ -521,28 +526,31 @@ public class BpTree {
                     if (i < newSize) {
                         leftNodeKeys.add(keys.get(i));
                         leftNodeChilds.add(childs.get(i));
+                        leftNodeChilds.add(childs.get(i + 1));
                     }else if (i > newSize){
                         rightNodeKeys.add(keys.get(i));
                         rightNodeChilds.add(childs.get(i));
+                        rightNodeChilds.add(childs.get(i + 1));
                     }
                 }
-                leftNodeChilds.add(childs.get(childs.size() - 2));
-
-                rightNodeChilds.add(child1.loc());
-                rightNodeChilds.add(child2.loc());
-
+//                leftNodeChilds.add(childs.get(childs.size() - 2));
+//
+//                rightNodeChilds.add(child2.loc());
+                // Recorrer todos los childs involucrados updateando sus parents
                 keyNode.setKeys(leftNodeKeys);
-                keyNode.setChilds(leftNodeChilds);
+                keyNode.setChilds(keyTypes, recordTypes, leftNodeChilds, file);
                 keyNode.setAvailableSpace(blockSize - 1);
 
 
-                parent = nextInsert;
                 file.seek(nextInsert);
                 file.writeBoolean(false);
                 KeyNode newKeyNode = new KeyNode(blockSize - 1);
                 newKeyNode.setHead(nextInsert + 1);
+
+//                child2.setParent(nextInsert);
+
                 newKeyNode.setKeys(rightNodeKeys);
-                newKeyNode.setChilds(rightNodeChilds);
+                newKeyNode.setChilds(keyTypes, recordTypes, rightNodeChilds, file);
                 nextInsert += blockSize;
 
 
@@ -552,18 +560,29 @@ public class BpTree {
 
             }else {
                 // Simply insert if not
+                child1.setParent(parent);
+                child2.setParent(parent);
                 keyNode.add(key, child2.loc(), file);
             }
         }
 
         // Write first node
         file.seek(child1.loc() + 1);
-        child1.setParent(parent);
         child1.writeToFile(file);
 
         file.seek(child2.loc() + 1);
-        child2.setParent(parent);
+
         child2.writeToFile(file);
+    }
+
+
+    /**
+     * Method that updates an existing tuple
+     * @param key key to update
+     * @param tuple tuple to set
+     */
+    public int updateTuple(Key key, Tuple tuple) {
+        return 0x23241;
     }
 
 
