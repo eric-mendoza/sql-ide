@@ -66,6 +66,22 @@ public class Pair implements Comparable<Pair>{
         this.tuple = tuple;
     }
 
+    /**
+     * This is a setter that modifies tuple records
+     * if they are not nullt
+     * @param t Tuple with the values to modify
+     */
+    public void updateTuple(Tuple t, RandomAccessFile file) throws IOException{
+        ArrayList<Record> records = tuple.getRecords();
+        ArrayList<Record> recordsToInsert = t.getRecords();
+        for (int i = 0; i < records.size(); i++) {
+            if (!recordsToInsert.get(i).isNull()){
+                records.set(i, recordsToInsert.get(i));
+            }
+        }
+        tuple.writeToFile(file);
+    }
+
     @Override
     public int compareTo(Pair o) {
         return key.compareTo(o.key);

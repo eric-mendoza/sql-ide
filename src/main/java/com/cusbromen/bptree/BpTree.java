@@ -561,11 +561,227 @@ public class BpTree {
      * Method that updates an existing tuple
      * @param key key to update
      * @param tuple tuple to set
+     * @return Affected tuple count
+     * @throws IOException if something goes bad
      */
-    public int updateTuple(Key key, Tuple tuple) {
-
-        return 0x23241;
+    public int updateTuple(Key key, Tuple tuple) throws IOException {
+        LeafNode leafNode = search(key);
+        return leafNode.update(key, tuple, file);
     }
+
+    /**
+     * Method that updates tuples in a range
+     * min <= k <= max
+     * @param min min key
+     * @param max max key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int updateRange(Key min, Key max, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(min);
+
+        do {
+            leafNode.rangeUpdate(min, max, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min < k < max
+     * @param min min key
+     * @param max max key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int strictRangeUpdate(Key min, Key max, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(min);
+
+        do {
+            leafNode.strictRangeUpdate(min, max, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
+
+    /**
+     * Method that updates tuples in a range
+     * min <= k < max
+     * @param min min key
+     * @param max max key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int lowerRangeUpdate(Key min, Key max, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(min);
+
+        do {
+            leafNode.lowerRangeUpdate(min, max, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min <= k
+     * @param min min key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int lowerRangeUpdate(Key min, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(min);
+
+        do {
+            leafNode.lowerRangeUpdate(min, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min < k
+     * @param min min key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int lowerStrictRangeUpdate(Key min, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(min);
+
+        do {
+            leafNode.lowerStrictRangeUpdate(min, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min < k <= max
+     * @param min min key
+     * @param max max key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int upperRangeUpdate(Key min, Key max, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(min);
+
+        do {
+            leafNode.upperRangeUpdate(min, max, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * k <= max
+     * @param max max key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int upperRangeUpdate(Key max, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(max);
+
+        do {
+            leafNode.upperRangeUpdate(max, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * k < max
+     * @param max max key
+     * @param tuple tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    public int upperStrictRangeUpdate(Key max, Tuple tuple) throws IOException {
+        int affectedTuples = 0;
+
+        LeafNode leafNode = search(max);
+
+        do {
+            leafNode.upperStrictRangeUpdate(max, tuple, file);
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }
+        } while(leafNode.getNextNode() != -1);
+
+
+        return affectedTuples;
+    }
+
+
 
 
     /**

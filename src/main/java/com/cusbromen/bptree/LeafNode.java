@@ -111,6 +111,222 @@ public class LeafNode extends Node{
     }
 
 
+    /**
+     * Update a single tuple
+     * @param key key to identify the tuple
+     * @param t the tuple to modify
+     * @param file file to write to
+     */
+    int update(Key key, Tuple t, RandomAccessFile file) throws IOException{
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (p.getKey().compareTo(key) == 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min <= k <= max
+     * @param min min key
+     * @param max max key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int rangeUpdate(Key min, Key max, Tuple t,
+                    RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (min.compareTo(p.getKey()) <= 0 && max.compareTo(p.getKey()) >= 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min < k < max
+     * @param min min key
+     * @param max max key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int strictRangeUpdate(Key min, Key max, Tuple t,
+                         RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (min.compareTo(p.getKey()) < 0 && max.compareTo(p.getKey()) > 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min <= k < max
+     * @param min min key
+     * @param max max key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int lowerRangeUpdate(Key min, Key max, Tuple t,
+                         RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (min.compareTo(p.getKey()) <= 0 && max.compareTo(p.getKey()) > 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+    /**
+     * Method that updates tuples in a range
+     * min <= k
+     * @param min min key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int lowerRangeUpdate(Key min, Tuple t,
+                         RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (min.compareTo(p.getKey()) <= 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min < k
+     * @param min min key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int lowerStrictRangeUpdate(Key min, Tuple t,
+                         RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (min.compareTo(p.getKey()) < 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * min < k <= max
+     * @param min min key
+     * @param max max key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int upperRangeUpdate(Key min, Key max, Tuple t,
+                         RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (min.compareTo(p.getKey()) < 0 && max.compareTo(p.getKey()) >= 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+
+    /**
+     * Method that updates tuples in a range
+     * k <= max
+     * @param max max key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int upperRangeUpdate(Key max, Tuple t,
+                         RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (max.compareTo(p.getKey()) >= 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+    /**
+     * Method that updates tuples in a range
+     * k < max
+     * @param max max key
+     * @param t tuple to enter
+     * @return Affected tuple count
+     * @throws IOException if something goes wrong
+     */
+    int upperStrictRangeUpdate(Key max, Tuple t,
+                         RandomAccessFile file) throws IOException {
+        int affectedTuples = 0;
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (max.compareTo(p.getKey()) > 0) {
+                file.seek(head + 44 + p.getKey().size() + i * p.size());
+                p.updateTuple(t, file);
+                ++affectedTuples;
+            }
+        }
+        return affectedTuples;
+
+    }
+
+
+
+
+
 
 
     public void dump(String ident) {
