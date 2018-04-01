@@ -284,8 +284,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() > 0);
+        } while(true);
 
         return rows;
     }
@@ -312,8 +314,70 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
+
+        return rows;
+    }
+
+
+    /**
+     * keys <= max
+     * @param max key max to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Pair> upperRangeSearch(Key max) throws IOException{
+        LeafNode leafNode = search(max);
+
+        ArrayList<Pair> rows = new ArrayList<>();
+        do {
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (max.compareTo(p.getKey()) >= 0) {
+                    rows.add(p);
+                }
+            }
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
+            }
+        } while(true);
+
+        return rows;
+    }
+
+
+    /**
+     * keys < max
+     * @param max key max to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Pair> upperStrictRangeSearch(Key max) throws IOException{
+        LeafNode leafNode = search(max);
+
+        ArrayList<Pair> rows = new ArrayList<>();
+        do {
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (max.compareTo(p.getKey()) > 0) {
+                    rows.add(p);
+                }
+            }
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
+            }
+        } while(true);
 
         return rows;
     }
@@ -340,8 +404,69 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
+
+        return rows;
+    }
+
+    /**
+     * min <= keys
+     * @param min Key min to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Pair> lowerRangeSearch(Key min) throws IOException{
+        LeafNode leafNode = search(min);
+
+        ArrayList<Pair> rows = new ArrayList<>();
+        do {
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (min.compareTo(p.getKey()) <= 0) {
+                    rows.add(p);
+                }
+            }
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
+            }
+        } while(true);
+
+        return rows;
+    }
+
+
+    /**
+     * min < keys
+     * @param min Key min to compare
+     * @return All rows that satisfy criteria
+     * @throws IOException If something goes wrong
+     */
+    public ArrayList<Pair> lowerStrictRangeSearch(Key min) throws IOException{
+        LeafNode leafNode = search(min);
+
+        ArrayList<Pair> rows = new ArrayList<>();
+        do {
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (min.compareTo(p.getKey()) < 0) {
+                    rows.add(p);
+                }
+            }
+            if (leafNode.getNextNode() > 0) {
+                file.seek(leafNode.getNextNode() + 1);
+                leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
+            }
+        } while(true);
 
         return rows;
     }
@@ -370,8 +495,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
         return rows;
     }
@@ -588,8 +715,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
@@ -615,8 +744,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
@@ -643,8 +774,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
@@ -669,8 +802,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
@@ -695,8 +830,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
@@ -722,8 +859,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
@@ -748,8 +887,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
@@ -774,8 +915,10 @@ public class BpTree {
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
                 leafNode = new LeafNode(keyTypes, recordTypes, file);
+            }else {
+                break;
             }
-        } while(leafNode.getNextNode() != -1);
+        } while(true);
 
 
         return affectedTuples;
