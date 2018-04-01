@@ -12,6 +12,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 
@@ -19,6 +21,7 @@ import java.util.*;
 public class SymbolTableHashMap {
     private JSONObject metadata, dbInUseMetadata;
     private String dbsJsonPath, dbInUseId;
+    public  String temporalErrorMessage;
     private List<String> verboseParser;
     private int BLOCKSIZE = 4096;
 
@@ -871,6 +874,7 @@ public class SymbolTableHashMap {
 
                                 // Insert value to its position on null array
                                 int columnPosition = columnsId.indexOf(columnIdToInsert);
+                                insertingRow.remove(columnPosition);
                                 insertingRow.add(columnPosition, value);
                             }
 
@@ -889,6 +893,7 @@ public class SymbolTableHashMap {
                                 String value = row.get(i);
 
                                 // Insert value to its position on null array
+                                insertingRow.remove(i);
                                 insertingRow.add(i, value);
                             }
 
@@ -899,11 +904,13 @@ public class SymbolTableHashMap {
                     }
 
                     ArrayList<String> primaryKeysColumnNames = getPrimaryKey(tableId);
+                    BpTree bpTree = new BpTree(getTableTreePath(tableId));
                     for (ArrayList<String> inRow : insertingRows) {
                         // Separate PK from the other columns
                         ArrayList<String> primaryValues = new ArrayList<>();
                         for (String pk : primaryKeysColumnNames) {
                             int pkIndex = columnsId.indexOf(pk);  // Get primary key index on columns
+                            columnsId.remove(pk);
                             primaryValues.add(pkIndex, inRow.remove(pkIndex));  // Remove and insert pk value
                         }
 
@@ -920,51 +927,139 @@ public class SymbolTableHashMap {
 
 
                         // Open Btree
-                        BpTree bpTree = new BpTree(getTableTreePath(tableId));
                         Key key = new Key();
                         Tuple row = new Tuple();
+                        temporalErrorMessage = null;
 
                         // Pk
                         for (int i = 0; i < primaryValues.size(); i++) {
                             String value = primaryValues.get(i);
-                            String type = primaryKeysColumnNames.get(i);
+                            String columnId = primaryKeysColumnNames.get(i);
+                            String type = columnsAndTypes.get(columnId);
 
-                            key.add(recordGenerator(value, type));
+                            // Verify length
+                            Integer charLength = getColumnRequiredLength(table, columnId);
+
+                            Record recordToInsert = recordGenerator(value, type, charLength);
+
+                            if (recordToInsert == null){
+                                return temporalErrorMessage;
+                            }
+
+                            key.add(recordToInsert);
                         }
 
                         // Rows
-                        for (int i = 0; i < primaryValues.size(); i++) {
+                        for (int i = 0; i < inRow.size(); i++) {
                             String value = inRow.get(i);
-                            String type = primaryKeysColumnNames.get(i);
+                            String columnId = columnsId.get(i);
+                            String type = columnsAndTypes.get(columnId);
 
-                            key.add(recordGenerator(value, type));
+                            // Verify length
+                            Integer charLength = getColumnRequiredLength(table, columnId);
+
+                            Record recordToInsert = recordGenerator(value, type, charLength);
+
+                            if (recordToInsert == null){
+                                return temporalErrorMessage;
+                            }
+
+                            row.add(recordToInsert);
                         }
 
+                        // Insert in tree
+                        bpTree.insert(key, row);
                     }
+
+                    // Close tree
+                    bpTree.close();
+
+                    // Augment number of records on table
+                    augmentRecordsOnTable(table, insertingRows.size());
+
+                    return "Successfully inserted <strong>" + insertingRows + "</strong> rows in table <strong>" + tableId + "</strong>.";
+                } else {
+                    temporalErrorMessage = "Error: Table doesn't exists: <strong>" + tableId + "</strong> in insert.";
+                    return temporalErrorMessage;
                 }
+            } else {
+                temporalErrorMessage = "Error: You haven't selected a DB.";
+                return temporalErrorMessage;
             }
         } catch (IOException e) {
             e.printStackTrace();
+            temporalErrorMessage = "Error: Error writing while inserting rows.";
+            return temporalErrorMessage;
         }
-
-        return "";
     }
 
-    private Record recordGenerator(String value, String type){
+    private Integer getColumnRequiredLength(JSONObject table, String columnId) {
+        JSONObject columns = (JSONObject) table.get("columns");
+        JSONObject column = (JSONObject) columns.get(columnId);
+        Number number = ((Number) column.get("length"));
+        if (number != null){
+            return number.intValue();
+        } else {
+            return null;
+        }
+    }
+
+    private void augmentRecordsOnTable(JSONObject table, int size) {
+        try{
+            Integer noRecords = ((Number) table.get("noRecords")).intValue();
+            table.put("noRecords", noRecords + size);
+
+            PrintWriter writer = new PrintWriter("metadata/" + dbInUseId + "/" + dbInUseId + ".json", "UTF-8");
+            writer.write(dbInUseMetadata.toJSONString());
+            writer.close();
+        } catch (FileNotFoundException | UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    private Record recordGenerator(String value, String type, Integer charLength){
         if (value != null){
             switch (type){
                 case "INT":
-                    return new IntRecord(Integer.valueOf(value));
+                    try {
+                        Integer myInt = Integer.valueOf(value);
+                        return new IntRecord(myInt);
+                    } catch (NumberFormatException e){
+                        temporalErrorMessage = "Error: Invalid INT <strong>" + value + "</strong> at insert.";
+                        return null;
+                    }
 
                 case "FLOAT":
-                    return new FloatRecord(Double.valueOf(value));
+                    try{
+                        Double myFloat = Double.valueOf(value);
+                        return new FloatRecord(myFloat);
+                    } catch (NumberFormatException e){
+                        temporalErrorMessage = "Error: Invalid FLOAT <strong>" + value + "</strong> at insert.";
+                        return null;
+                    }
+
 
                 case "DATE":
-                    String[] d = value.split("-");
-                    return new DateRecord(new GregorianCalendar(Integer.valueOf(d[0]), Integer.valueOf(d[1]), Integer.valueOf(d[2])).getTime());
+                    try{
+                        DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+                        df.setLenient(false);
+                        Date fecha2 = df.parse(value);
+                        return new DateRecord(fecha2);
+
+                    } catch (java.text.ParseException e) {
+                        temporalErrorMessage = "Error: Invalid date <strong>" + value + "</strong> at insert.";
+                        return null;
+                    }
 
                 case "CHAR":
-                    return new CharRecord(value.toCharArray());
+                    char[] result = value.substring(1, value.length() - 1).toCharArray();
+                    if (result.length > charLength){
+                        temporalErrorMessage = "Error: Invalid char, <strong>" + value + "</strong> length must be at most <strong>" + charLength + "</strong> chars long.";
+                        return null;
+                    }
+                    return new CharRecord(result);
             }
         } else {
             switch (type){

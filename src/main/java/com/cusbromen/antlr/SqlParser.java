@@ -932,6 +932,7 @@ public class SqlParser extends Parser {
 
 	public static class DataContext extends ParserRuleContext {
 		public Token type;
+		public TerminalNode NUMBER() { return getToken(SqlParser.NUMBER, 0); }
 		public TerminalNode INT() { return getToken(SqlParser.INT, 0); }
 		public TerminalNode FLOAT() { return getToken(SqlParser.FLOAT, 0); }
 		public TerminalNode DATE() { return getToken(SqlParser.DATE, 0); }
@@ -957,7 +958,7 @@ public class SqlParser extends Parser {
 			setState(180);
 			((DataContext)_localctx).type = _input.LT(1);
 			_la = _input.LA(1);
-			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << INT) | (1L << FLOAT) | (1L << DATE) | (1L << CHAR))) != 0)) ) {
+			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << NUMBER) | (1L << INT) | (1L << FLOAT) | (1L << DATE) | (1L << CHAR))) != 0)) ) {
 				((DataContext)_localctx).type = (Token)_errHandler.recoverInline(this);
 			}
 			else {
@@ -2467,8 +2468,8 @@ public class SqlParser extends Parser {
 		"\36\3\37\3\37\3\37\3\37\3\37\3\37\3\37\3\37\3\37\3\37\3\37\5\37\u018e"+
 		"\n\37\3\37\3\37\3\37\3\37\3\37\3\37\7\37\u0196\n\37\f\37\16\37\u0199\13"+
 		"\37\3 \3 \3!\3!\3!\3!\3!\2\3<\"\2\4\6\b\n\f\16\20\22\24\26\30\32\34\36"+
-		" \"$&(*,.\60\62\64\668:<>@\2\7\3\28;\3\2 !\3\2%(\4\2\679<<\4\2\31\31/"+
-		"\63\2\u01b1\2R\3\2\2\2\4W\3\2\2\2\6\\\3\2\2\2\bd\3\2\2\2\ni\3\2\2\2\f"+
+		" \"$&(*,.\60\62\64\668:<>@\2\7\3\2\67;\3\2 !\3\2%(\4\2\679<<\4\2\31\31"+
+		"/\63\2\u01b1\2R\3\2\2\2\4W\3\2\2\2\6\\\3\2\2\2\bd\3\2\2\2\ni\3\2\2\2\f"+
 		"m\3\2\2\2\16r\3\2\2\2\20x\3\2\2\2\22\u0081\3\2\2\2\24\u0086\3\2\2\2\26"+
 		"\u008a\3\2\2\2\30\u0090\3\2\2\2\32\u00ab\3\2\2\2\34\u00b6\3\2\2\2\36\u00b8"+
 		"\3\2\2\2 \u00cd\3\2\2\2\"\u00d9\3\2\2\2$\u0101\3\2\2\2&\u0104\3\2\2\2"+

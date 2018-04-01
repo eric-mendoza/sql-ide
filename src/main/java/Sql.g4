@@ -10,12 +10,12 @@ AND : 'AND';
 
 fragment DIGIT:     '0'..'9' ;
 NUMBER:             DIGIT(DIGIT)* ;
-INT:                '-'? NUMBER;
+INT:                ('-' NUMBER) | (NUMBER);
 FLOAT:              INT '.'? NUMBER?;
 DATE:               NUMBER '-' NUMBER '-' NUMBER;
 CHAR :              '\'' ( ~['\r\n\\] | '\\' ['\\] )+ '\'';
 ID:                 (('a'..'z'|'A'..'Z' | '_') ((DIGIT)*))+ ;
-NEWLINE:            '\r'? '\n' ;
+NEWLINE:            '\r'? '\n'  -> skip;
 WHITESPACE:         [\t\r\n\f ]+ -> skip ;
 COMMENTS:           '--' ~('\r' | '\n' )*  -> skip ;
 ErrorCharacter
@@ -89,7 +89,7 @@ column_insert
     ;
 
 data
-    :   type = (INT | FLOAT | DATE | CHAR)
+    :   type = (NUMBER | INT | FLOAT | DATE | CHAR)
     ;
 
 

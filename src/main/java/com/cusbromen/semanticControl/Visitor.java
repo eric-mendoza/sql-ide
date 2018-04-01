@@ -46,10 +46,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         addingConstraint = false;
 
         if (!getDbInUse().equals("none")) {
-            showNotificationDbInUse();
+            //showNotificationDbInUse(); // TODO lo quito para mientras huehuehue
         }
         // TODO: Este mensaje tendrá que ser mostrado por la gui
-        //System.out.println("DB in use: " + getDbInUse());
+        System.out.println("DB in use: " + getDbInUse());
     }
 
 
@@ -383,6 +383,11 @@ public class Visitor extends SqlBaseVisitor<String> {
         String tableId = ids.remove(0).getSymbol().getText();
 
         String result = symbolTable.insert(tableId, ids, rowsToInsert);
+        if (symbolTable.temporalErrorMessage == null){
+            successMessages.add(result);
+        } else {
+            semanticErrorsList.add(result + " Line: " + ctx.start.getLine());
+        }
 
         return "void";
     }
