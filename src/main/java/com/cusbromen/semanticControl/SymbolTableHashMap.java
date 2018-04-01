@@ -278,6 +278,10 @@ public class SymbolTableHashMap {
                 // Get the names of primary key
                 ArrayList<String> pks = getPrimaryKey(tableName);
 
+                // If there are no Primary keys, create surrogate pk
+                boolean surrogatePk = pks == null;
+
+
                 // Get columns (id, type)
                 ArrayList<String[]> columns = getTableColumnTypes(tableName);
 
@@ -285,13 +289,22 @@ public class SymbolTableHashMap {
                 ArrayList<Type> primaryTypes = new ArrayList<>();
                 ArrayList<Type> rowType = new ArrayList<>();
 
+                // Create surrogate PK if necessary
+                if (surrogatePk){
+                    primaryTypes.add(typeGetter("DATE"));
+                }
+
                 // Add all the types of column
                 for (String[] column : columns) {
                     String columnId = column[0];
                     String columnType = column[1];
 
-                    if (pks.contains(columnId)){
-                        primaryTypes.add(typeGetter(columnType));
+                    if (!surrogatePk){
+                        if (pks.contains(columnId)){
+                            primaryTypes.add(typeGetter(columnType));
+                        } else {
+                            rowType.add(typeGetter(columnType));
+                        }
                     } else {
                         rowType.add(typeGetter(columnType));
                     }
