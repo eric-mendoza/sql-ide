@@ -229,10 +229,10 @@ public class BpTree {
         // so we traverse it to get all the records
         do {
             leafNode = new LeafNode(keyTypes, recordTypes, file);
-            ArrayList<Key> keys = leafNode.getKeys();
-            ArrayList<Tuple> tuples = leafNode.getTuples();
-            for (int i = 0; i < keys.size(); i++) {
-                rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
             }
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
@@ -270,11 +270,11 @@ public class BpTree {
      */
     public Tuple equalSearch(Key key) throws IOException{
         LeafNode leafNode = search(key);
-        ArrayList<Key> keys = leafNode.getKeys();
-        ArrayList<Tuple> tuples = leafNode.getTuples();
-        for (int i = 0; i < key.size(); i++) {
-            if (key.compareTo(keys.get(i)) == 0) {
-                return joinKeyTuple(key, tuples.get(i));
+        ArrayList<Pair> pairs = leafNode.getPairs();
+        for (Pair p :
+                pairs) {
+            if (key.compareTo(p.getKey()) == 0){
+                return joinKeyTuple(p.getKey(), p.getTuple());
             }
         }
 
@@ -293,11 +293,11 @@ public class BpTree {
 
         ArrayList<Tuple> rows = new ArrayList<>();
         do {
-            ArrayList<Key> keys = leafNode.getKeys();
-            ArrayList<Tuple> tuples = leafNode.getTuples();
-            for (int i = 0; i < keys.size(); i++) {
-                if (min.compareTo(keys.get(i)) <= 0 &&  max.compareTo(keys.get(i)) >= 0){
-                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (min.compareTo(p.getKey()) <= 0 && max.compareTo(p.getKey()) >= 0) {
+                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -321,11 +321,11 @@ public class BpTree {
 
         ArrayList<Tuple> rows = new ArrayList<>();
         do {
-            ArrayList<Key> keys = leafNode.getKeys();
-            ArrayList<Tuple> tuples = leafNode.getTuples();
-            for (int i = 0; i < keys.size(); i++) {
-                if (min.compareTo(keys.get(i)) < 0 &&  max.compareTo(keys.get(i)) >= 0){
-                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (min.compareTo(p.getKey()) < 0 && max.compareTo(p.getKey()) >= 0) {
+                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -349,11 +349,11 @@ public class BpTree {
 
         ArrayList<Tuple> rows = new ArrayList<>();
         do {
-            ArrayList<Key> keys = leafNode.getKeys();
-            ArrayList<Tuple> tuples = leafNode.getTuples();
-            for (int i = 0; i < keys.size(); i++) {
-                if (min.compareTo(keys.get(i)) <= 0 &&  max.compareTo(keys.get(i)) > 0){
-                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (min.compareTo(p.getKey()) <= 0 && max.compareTo(p.getKey()) > 0) {
+                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -379,11 +379,11 @@ public class BpTree {
 
         ArrayList<Tuple> rows = new ArrayList<>();
         do {
-            ArrayList<Key> keys = leafNode.getKeys();
-            ArrayList<Tuple> tuples = leafNode.getTuples();
-            for (int i = 0; i < keys.size(); i++) {
-                if (min.compareTo(keys.get(i)) < 0 &&  max.compareTo(keys.get(i)) > 0){
-                    rows.add(joinKeyTuple(keys.get(i), tuples.get(i)));
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            for (Pair p :
+                    pairs) {
+                if (min.compareTo(p.getKey()) < 0 && max.compareTo(p.getKey()) > 0) {
+                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -406,8 +406,8 @@ public class BpTree {
     private LeafNode uniqueSearch(Key key) throws IOException, InvalidParameterException{
         file.seek(root);
         LeafNode leafNode = treeSearch(key);
-        for (Key k : leafNode.getKeys()){
-            if (k.compareTo(key) == 0)
+        for (Pair p : leafNode.getPairs()){
+            if (p.getKey().compareTo(key) == 0)
                 throw new InvalidParameterException("Key must be unique");
         }
         return leafNode;
@@ -425,29 +425,25 @@ public class BpTree {
         if (isFull) {
             // Split the bucket
             long parent = leafNode.getParent();
-            ArrayList<Key> keys = leafNode.getKeys();
-            ArrayList<Tuple> tuples = leafNode.getTuples();
-            int firstNodeSize = (keys.size() + 1) / 2;
-            ArrayList<Key> firstNodeKeys = new ArrayList<>();
-            ArrayList<Tuple> firstNodeRecords = new ArrayList<>();
+            ArrayList<Pair> pairs = leafNode.getPairs();
+            Utility.sortedInsert(pairs, new Pair(key, row));
+            int firstNodeSize = (pairs.size()) / 2;
 
-            ArrayList<Key> secondNodeKeys = new ArrayList<>();
-            ArrayList<Tuple> secondNodeRecords = new ArrayList<>();
-            for (int i = 0; i < keys.size(); i++) {
+            ArrayList<Pair> firstNodePairs = new ArrayList<>();
+
+            ArrayList<Pair> secondNodePairs = new ArrayList<>();
+
+            for (int i = 0; i < pairs.size(); i++) {
                 if (i < firstNodeSize) {
-                    firstNodeKeys.add(keys.get(i));
-                    firstNodeRecords.add(tuples.get(i));
+                    firstNodePairs.add(pairs.get(i));
                 }else {
-                    secondNodeKeys.add(keys.get(i));
-                    secondNodeRecords.add(tuples.get(i));
+                    secondNodePairs.add(pairs.get(i));
                 }
             }
-            secondNodeKeys.add(key);
-            secondNodeRecords.add(row);
+
 
             // Write the first node
-            leafNode.setKeys(firstNodeKeys);
-            leafNode.setTuples(firstNodeRecords);
+            leafNode.setPairs(firstNodePairs);
             leafNode.setAvailableSpace(blockSize - 1);
             leafNode.setNextNode(nextInsert);
 
@@ -458,14 +454,11 @@ public class BpTree {
             LeafNode nextNode = new LeafNode(blockSize - 1);
             nextNode.setHead(nextInsert + 1);
             nextNode.setPrevNode(leafNode.loc());
-            nextNode.setKeys(secondNodeKeys);
-            nextNode.setTuples(secondNodeRecords);
+            nextNode.setPairs(secondNodePairs);
             nextInsert += blockSize;
 
-
-
-            splitParents(parent, keys.get(firstNodeSize),
-                    leafNode, nextNode, keys.size());
+            splitParents(parent, secondNodePairs.get(0).getKey(),
+                    leafNode, nextNode, pairs.size() - 1);
 
 
         } else {
@@ -475,16 +468,18 @@ public class BpTree {
     }
 
 
+
+
     /**
      * Method that inserts a key into parent nodes,
      * it splits parents if needed
      * @param parent parent pointer
      * @param key key to insert
-     * @param maxDegree max degree of the parents
+     * @param maxElements max degree of the parents
      * @throws IOException if something goes wrong
      */
     private void splitParents(long parent, Key key, Node child1,
-                              Node child2, int maxDegree) throws IOException{
+                              Node child2, int maxElements) throws IOException{
 
         // Parent does not exist
         if (parent < 0) {
@@ -512,16 +507,17 @@ public class BpTree {
             KeyNode keyNode = new KeyNode(keyTypes, file);
 
             // Check if parent needs to be splitted
-            if (keyNode.getKeys().size() == maxDegree) {
-                int newSize = (maxDegree + 1) / 2;
+            if (keyNode.getKeys().size() == maxElements) {
                 ArrayList<Key> keys  = keyNode.getKeys();
+                Utility.sortedInsert(keys, key);
+                int newSize = (keys.size()) / 2;
                 ArrayList<Long> childs = keyNode.getChilds();
 
                 ArrayList<Key> leftNodeKeys = new ArrayList<>();
                 ArrayList<Key> rightNodeKeys = new ArrayList<>();
                 ArrayList<Long> leftNodeChilds = new ArrayList<>();
                 ArrayList<Long> rightNodeChilds = new ArrayList<>();
-                for (int i = 0; i < maxDegree; i++) {
+                for (int i = 0; i < keys.size(); i++) {
                     if (i < newSize) {
                         leftNodeKeys.add(keys.get(i));
                         leftNodeChilds.add(childs.get(i));
@@ -532,7 +528,6 @@ public class BpTree {
                 }
                 leftNodeChilds.add(childs.get(childs.size() - 2));
 
-                rightNodeKeys.add(key);
                 rightNodeChilds.add(child1.loc());
                 rightNodeChilds.add(child2.loc());
 
@@ -552,7 +547,7 @@ public class BpTree {
 
 
                 splitParents(keyNode.getParent(), keys.get(newSize), keyNode,
-                        newKeyNode, maxDegree);
+                        newKeyNode, maxElements);
 
 
             }else {

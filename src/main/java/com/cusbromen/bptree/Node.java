@@ -8,7 +8,6 @@ public abstract class Node {
 
     protected long parent;
     long head;
-    long back;
 
     // Free bytes to write
     long availableSpace;

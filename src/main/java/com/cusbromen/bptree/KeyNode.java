@@ -54,13 +54,13 @@ public class KeyNode extends Node {
         }
         file.writeLong(childs.get(childs.size() -1));
 
-        back = file.getFilePointer();
+        long prev = file.getFilePointer();
         // Bytes written
-        long diff = back - head;
+        long diff = prev - head;
         file.seek(head);
         availableSpace -= diff;
         file.writeLong(availableSpace);
-        file.seek(back);
+        file.seek(prev);
     }
 
     /**
@@ -82,7 +82,6 @@ public class KeyNode extends Node {
         }
         childs.add(file.readLong());
 
-        back = file.getFilePointer();
     }
 
 
@@ -92,19 +91,21 @@ public class KeyNode extends Node {
      * @throws IOException if something goes wrong
      */
     public void add(Key k, long child, RandomAccessFile file) throws IOException{
-        file.seek(back);
-        k.writeToFile(file);
-        file.writeLong(child);
-        availableSpace -= file.getFilePointer() - back;
-        back = file.getFilePointer();
-        keys.add(k);
+        Utility.sortedInsert(keys, k);
+        childs.add(child);
         file.seek(head);
+        availableSpace -= k.size() + 8;
         file.writeLong(availableSpace);
-        file.writeLong(parent);
-        file.seek(file.getFilePointer() + 8);
+        file.seek(file.getFilePointer() + 16);
         file.writeInt(keys.size());
+        for (int i = 0; i < keys.size(); i++) {
+            file.writeLong(childs.get(i));
+            keys.get(i).writeToFile(file);
+        }
+        file.writeLong(childs.get(childs.size() -1));
 
     }
+
 
 
     public void dump(String ident, ArrayList<Type> keyTypes,
