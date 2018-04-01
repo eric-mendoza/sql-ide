@@ -12,6 +12,8 @@ fragment DIGIT:     '0'..'9' ;
 NUMBER:             DIGIT(DIGIT)* ;
 INT:                '-'? NUMBER;
 FLOAT:              INT '.'? NUMBER?;
+DATE:               NUMBER '-' NUMBER '-' NUMBER;
+CHAR :              '\'' ( ~['\r\n\\] | '\\' ['\\] )+ '\'';
 ID:                 (('a'..'z'|'A'..'Z' | '_') ((DIGIT)*))+ ;
 NEWLINE:            '\r'? '\n' ;
 WHITESPACE:         [\t\r\n\f ]+ -> skip ;
@@ -79,8 +81,17 @@ show_cols_from
     ;
 
 insert_into
-    :   'INSERT' 'INTO' ID (ID (',' ID)*)* 'VALUES' (data_type (',' data_type)*) ';'
+    :   'INSERT' 'INTO' ID (ID (',' ID)*)* 'VALUES' (column_insert (',' column_insert)*) ';'
     ;
+
+column_insert
+    :   '(' (data (',' data)*) ')'
+    ;
+
+data
+    :   type = (INT | FLOAT | DATE | CHAR)
+    ;
+
 
 update
     :   'UPDATE' ID 'SET' ID '=' (',' ID)* ('WHERE' condition)* ';'
