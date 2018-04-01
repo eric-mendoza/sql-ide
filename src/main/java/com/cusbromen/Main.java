@@ -110,56 +110,46 @@ public class Main {
             row.add(new IntRecord(4));
 
             Key k = new Key();
-            k.add(new FloatRecord(3.0));
+            k.add(new FloatRecord(20.0));
             bpTree1.insert(k, row);
 
             Key k1 = new Key();
-            k1.add(new FloatRecord(7.0));
+            k1.add(new FloatRecord(18.0));
             bpTree1.insert(k1, row);
 
             Key k2 = new Key();
-            k2.add(new FloatRecord(4.0));
+            k2.add(new FloatRecord(16.0));
             bpTree1.insert(k2, row);
 
             Tuple rr = new Tuple();
             rr.add(new CharRecord(bb));
             rr.add(new IntRecord(5));
             Key k3 = new Key();
-            k3.add(new FloatRecord(6.0));
+            k3.add(new FloatRecord(14.0));
             bpTree1.insert(k3, rr);
 
 //            bpTree1.dump();
 
             Key k4 = new Key();
-            k4.add(new FloatRecord(9.0));
+            k4.add(new FloatRecord(12.0));
             bpTree1.insert(k4, row);
 
             Key k5 = new Key();
-            k5.add(new FloatRecord(5.0));
+            k5.add(new FloatRecord(10.0));
             bpTree1.insert(k5, row);
 
 //            bpTree1.dump();
 
             Key k6 = new Key();
-            k6.add(new FloatRecord(10.0));
+            k6.add(new FloatRecord(15.0));
             bpTree1.insert(k6, row);
-//            bpTree1.dump();
-            k6 = new Key();
-            k6.add(new FloatRecord(12.0));
-            bpTree1.insert(k6, row);
-//            bpTree1.dump();
-            k6 = new Key();
-            k6.add(new FloatRecord(11.0));
-            bpTree1.insert(k6, row);
-//            bpTree1.dump();
 
-            k6 = new Key();
-            k6.add(new FloatRecord(8.0));
-            bpTree1.insert(k6, row);
+
+
+
             bpTree1.dump();
-
             ArrayList<Tuple> rows = bpTree1.all();
-            Tuple tt = bpTree1.equalSearch(k3);
+            Tuple tt = bpTree1.equalSearch(k4);
 
             int x = 0;
         }catch (Exception ex) {
