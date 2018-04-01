@@ -10,23 +10,18 @@ import org.antlr.v4.runtime.atn.PredictionMode;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
+
         CharStream charStream = CharStreams.fromString("CREATE DATABASE prueba;" +
                 "USE DATABASE prueba;" +
                 "CREATE TABLE colegio(zona INT, id INT CONSTRAINT PK_colegio PRIMARY KEY (zona, id) NOT NULL, name CHAR, no_estudiantes INT);" +
-                "" +
-                "CREATE TABLE" +
-                " clase(" +
-                "  id INT CONSTRAINT PK_clase PRIMARY KEY NOT NULL," +
-                "  id2 CHAR(40) CONSTRAINT CH_lol CHECK(id > 0 AND id < 100) NOT NULL," +
-                "  idColegio INT CONSTRAINT FK_clase FOREIGN KEY REFERENCES colegio (id) NOT NULL," +
-                "  no_estudiantes INT," +
-                "  no_tareas INT CONSTRAINT FK_clase3 FOREIGN KEY REFERENCES colegio (zona) NOT NULL" +
-                ");" +
-                "ALTER TABLE clase ADD CONSTRAINT FK_clase7 FOREIGN KEY (no_tareas) REFERENCES colegio (id);");
+                        "ALTER DATABASE prueba RENAME TO noPrueba;" +
+                        "ALTER TABLE colegio RENAME TO universidad;"
+                );
         SqlLexer grammarLexer = new SqlLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(grammarLexer);
 

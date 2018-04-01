@@ -61,7 +61,6 @@ public class Visitor extends SqlBaseVisitor<String> {
             semanticErrorsList.add("Database <strong>" + id + "</strong> already exists. Line: " + ctx.start.getLine());
             return "error";
         }
-
         successMessages.add("Database <strong>" + id + "</strong> successfully created.");
         return "void";
     }
