@@ -91,7 +91,7 @@ public class KeyNode extends Node {
      * @throws IOException if something goes wrong
      */
     public void add(Key k, long child, RandomAccessFile file) throws IOException{
-        Utility.sortedInsert(keys, k);
+        Utility.sortedInsert(keys, childs, k, child);
         childs.add(child);
         file.seek(head);
         availableSpace -= k.size() + 8;

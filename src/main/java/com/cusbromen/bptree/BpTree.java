@@ -552,7 +552,6 @@ public class BpTree {
 
             }else {
                 // Simply insert if not
-                keyNode.getChilds().add(child2.loc());
                 keyNode.add(key, child2.loc(), file);
             }
         }

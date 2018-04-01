@@ -31,4 +31,20 @@ public class Utility {
         keys.add(k);
     }
 
+    /**
+     * Inserts a key in sorted order
+     * @param k key to insert
+     * @param child child to insert
+     */
+    public static void sortedInsert(ArrayList<Key> keys, ArrayList<Long> childs, Key k, long child) {
+        for (int i = 0; i < keys.size(); i++) {
+            if (k.compareTo(keys.get(i)) >= 0) continue;
+            keys.add(i, k);
+            childs.add(i + 1, child);
+            return;
+        }
+        keys.add(k);
+        childs.add(child);
+    }
+
 }
