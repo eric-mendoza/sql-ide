@@ -1,8 +1,7 @@
 package com.cusbromen.semanticControl;
 
-import com.cusbromen.bptree.BpTree;
-import com.cusbromen.bptree.Record;
-import com.cusbromen.bptree.Type;
+import com.cusbromen.bptree.*;
+import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -13,9 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 @SuppressWarnings("unchecked") // JSON's fault
@@ -776,6 +773,16 @@ public class SymbolTableHashMap {
         return columnsTuples;
     }
 
+    public LinkedHashMap<String, String> getTableColumnTypes(JSONObject table){
+        JSONObject columns = (JSONObject) table.get("columns");
+        Set<String> columnNames = columns.keySet();
+        LinkedHashMap<String, String> columnsTuples = new LinkedHashMap<>();
+        for (String columnId : columnNames) {
+            columnsTuples.put(columnId, (String)((JSONObject) columns.get(columnId)).get("type"));  // Get type
+        }
+        return columnsTuples;
+    }
+
 
     /**
      * Verifies if a table exists in the db in use
@@ -815,5 +822,161 @@ public class SymbolTableHashMap {
 
     String getTableTreePath(String tableName){
         return "metadata/" + dbInUseId + "/" + tableName;
+    }
+
+    public String insert(String tableId, List<TerminalNode> columnsToInsert, ArrayList<ArrayList<String>> rowsToInsert) {
+        try {
+            if (dbInUseId != null){
+                JSONObject table = getTable(tableId);
+                if (table != null){
+                    LinkedHashMap<String, String> columnsAndTypes = getTableColumnTypes(table); // (id, type)
+                    ArrayList<String> columnsId = new ArrayList<>(columnsAndTypes.keySet());
+                    ArrayList<String> insertingRow, columnsToInsertId = new ArrayList<>();
+                    ArrayList<ArrayList<String>> insertingRows = new ArrayList<>();
+
+                    for (TerminalNode token : columnsToInsert) {
+                        String columnIdToInsert = token.getSymbol().getText();
+                        JSONObject column = (JSONObject) table.get(columnIdToInsert);
+
+                        if (column == null){
+                            return "Error: Couldn't insert row. Column <strong>" + columnIdToInsert + "</strong> doesn't exists in table <strong>" + tableId + "</strong>.";
+                        }
+
+                        columnsToInsertId.add(columnIdToInsert);
+                    }
+
+                    // Verify if they specified the columns to insert the values
+                    // They did specified the columns
+                    if (columnsToInsert.size() > 0){
+                        for (ArrayList<String> row : rowsToInsert) {
+                            insertingRow = generateNullList(columnsId.size());  // Generate new null row
+
+                            // Analize each value to be inserted
+                            for (int i = 0; i < row.size(); i++) {
+                                String value = row.get(i);
+                                String columnIdToInsert = columnsToInsertId.get(i);
+
+                                // Insert value to its position on null array
+                                int columnPosition = columnsId.indexOf(columnIdToInsert);
+                                insertingRow.add(columnPosition, value);
+                            }
+
+                            // save the modified insert
+                            insertingRows.add(insertingRow);
+                        }
+                    }
+
+                    // they didn't specified the columns
+                    else {
+                        for (ArrayList<String> row : rowsToInsert) {
+                            insertingRow = generateNullList(columnsId.size());  // Generate new null row
+
+                            // Analize each value to be inserted
+                            for (int i = 0; i < row.size(); i++) {
+                                String value = row.get(i);
+
+                                // Insert value to its position on null array
+                                insertingRow.add(i, value);
+                            }
+
+                            // save the modified insert
+                            insertingRows.add(insertingRow);
+
+                        }
+                    }
+
+                    ArrayList<String> primaryKeysColumnNames = getPrimaryKey(tableId);
+                    for (ArrayList<String> inRow : insertingRows) {
+                        // Separate PK from the other columns
+                        ArrayList<String> primaryValues = new ArrayList<>();
+                        for (String pk : primaryKeysColumnNames) {
+                            int pkIndex = columnsId.indexOf(pk);  // Get primary key index on columns
+                            primaryValues.add(pkIndex, inRow.remove(pkIndex));  // Remove and insert pk value
+                        }
+
+                        // Verify constraints
+                        // Verify types
+
+                        // Verify NON NULL
+
+                        // Verify Primary Key
+
+                        // Verify Foreign Key
+
+                        // Verify Checks
+
+
+                        // Open Btree
+                        BpTree bpTree = new BpTree(getTableTreePath(tableId));
+                        Key key = new Key();
+                        Tuple row = new Tuple();
+
+                        // Pk
+                        for (int i = 0; i < primaryValues.size(); i++) {
+                            String value = primaryValues.get(i);
+                            String type = primaryKeysColumnNames.get(i);
+
+                            key.add(recordGenerator(value, type));
+                        }
+
+                        // Rows
+                        for (int i = 0; i < primaryValues.size(); i++) {
+                            String value = inRow.get(i);
+                            String type = primaryKeysColumnNames.get(i);
+
+                            key.add(recordGenerator(value, type));
+                        }
+
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return "";
+    }
+
+    private Record recordGenerator(String value, String type){
+        if (value != null){
+            switch (type){
+                case "INT":
+                    return new IntRecord(Integer.valueOf(value));
+
+                case "FLOAT":
+                    return new FloatRecord(Double.valueOf(value));
+
+                case "DATE":
+                    String[] d = value.split("-");
+                    return new DateRecord(new GregorianCalendar(Integer.valueOf(d[0]), Integer.valueOf(d[1]), Integer.valueOf(d[2])).getTime());
+
+                case "CHAR":
+                    return new CharRecord(value.toCharArray());
+            }
+        } else {
+            switch (type){
+                case "INT":
+                    return new IntRecord();
+
+                case "FLOAT":
+                    return new FloatRecord();
+
+                case "DATE":
+                    return new DateRecord();
+
+                case "CHAR":
+                    return new CharRecord();
+            }
+        }
+
+        return null;
+    }
+
+    private ArrayList<String> generateNullList(int size){
+        ArrayList<String> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(null);
+        }
+        return list;
     }
 }

@@ -83,6 +83,18 @@ public interface SqlVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitInsert_into(SqlParser.Insert_intoContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link SqlParser#column_insert}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitColumn_insert(SqlParser.Column_insertContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link SqlParser#data}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitData(SqlParser.DataContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link SqlParser#update}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

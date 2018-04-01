@@ -45,8 +45,11 @@ public class Visitor extends SqlBaseVisitor<String> {
         syntaxError = false;
         addingConstraint = false;
 
+        if (!getDbInUse().equals("none")) {
+            showNotificationDbInUse();
+        }
         // TODO: Este mensaje tendrá que ser mostrado por la gui
-        System.out.println("DB in use: " + getDbInUse());
+        //System.out.println("DB in use: " + getDbInUse());
     }
 
 
@@ -356,10 +359,41 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitShow_cols_from(ctx);
     }
 
-    /** 'INSERT' 'INTO' ID (ID (',' ID)*)* 'VALUES' (data_type (',' data_type)*) ';' */
+    /** 'INSERT' 'INTO' ID (ID (',' ID)*)* 'VALUES' (column_insert (',' column_insert)*) ';' */
     @Override
     public String visitInsert_into(SqlParser.Insert_intoContext ctx) {
-        return super.visitInsert_into(ctx);
+        List<TerminalNode> ids = ctx.ID();
+        ArrayList<ArrayList<String>> rowsToInsert = new ArrayList<>();
+
+        // Get row info
+        List<SqlParser.Column_insertContext> rows = ctx.column_insert();
+        for (SqlParser.Column_insertContext row : rows) {
+            ArrayList<String> data = new ArrayList<>();
+            List<SqlParser.DataContext> values = row.data();
+
+            for (SqlParser.DataContext value : values) {
+                data.add(value.type.getText());
+            }
+
+            rowsToInsert.add(data);
+        }
+
+
+        // Table to insert values
+        String tableId = ids.remove(0).getSymbol().getText();
+
+        String result = symbolTable.insert(tableId, ids, rowsToInsert);
+
+        return "void";
+    }
+
+    /** '(' (data (',' data)*) ')' */
+    @Override
+    public String visitColumn_insert(SqlParser.Column_insertContext ctx) {
+
+
+
+        return super.visitColumn_insert(ctx);
     }
 
     /** 'UPDATE' ID 'SET' ID '=' (',' ID)* ('WHERE' condition)* ';' */
@@ -1194,6 +1228,13 @@ public class Visitor extends SqlBaseVisitor<String> {
         confirmationWindow.setContent(confVLayout);
 
         layout.getUI().getUI().addWindow(confirmationWindow);
+    }
+
+    private void showNotificationDbInUse() {
+        Notification notification = new Notification("Using dabatase " + getDbInUse(), "Initializing...");
+        notification.setDelayMsec(2000);
+        notification.setPosition(Position.TOP_CENTER);
+        notification.show(Page.getCurrent());
     }
 
     public void loadDbMetadata() {
