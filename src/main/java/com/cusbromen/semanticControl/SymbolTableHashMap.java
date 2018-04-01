@@ -1,5 +1,8 @@
 package com.cusbromen.semanticControl;
 
+import com.cusbromen.bptree.BpTree;
+import com.cusbromen.bptree.Record;
+import com.cusbromen.bptree.Type;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -20,6 +23,7 @@ public class SymbolTableHashMap {
     private JSONObject metadata, dbInUseMetadata;
     private String dbsJsonPath, dbInUseId;
     private List<String> verboseParser;
+    private int BLOCKSIZE = 4096;
 
     public SymbolTableHashMap(List<String> verboseParser) {
         this.verboseParser = verboseParser;
@@ -49,7 +53,6 @@ public class SymbolTableHashMap {
         }
     }
 
-    // TODO Verify that currentDB isnt null before coming here (Also use the variable with the name of the db in use)
     public String showTables() {
         verboseParser.add("Will try to show tables!");
 
@@ -154,6 +157,12 @@ public class SymbolTableHashMap {
                     writer.write(dbInUseMetadata.toJSONString());
                     writer.close();
                     verboseParser.add(">> Wrote to file!");
+
+                    // RENAME TREE
+                    Path fileToMovePath = Paths.get("metadata/" + dbInUseId + "/" + oldName);
+                    Path targetPath = Paths.get("metadata/" + dbInUseId + "/" + newName);
+                    verboseParser.add(">> Changes made into path " + targetPath + "!");
+                    Files.move(fileToMovePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
 
                     return 1;
                 }
@@ -266,6 +275,36 @@ public class SymbolTableHashMap {
                 writer2.write(metadata.toJSONString());
                 writer2.close();
 
+                /*
+                    BTREE Management
+                 */
+                // Get the names of primary key
+                ArrayList<String> pks = getPrimaryKey(tableName);
+
+                // Get columns (id, type)
+                ArrayList<String[]> columns = getTableColumnTypes(tableName);
+
+                // Create table BTree structure
+                ArrayList<Type> primaryTypes = new ArrayList<>();
+                ArrayList<Type> rowType = new ArrayList<>();
+
+                // Add all the types of column
+                for (String[] column : columns) {
+                    String columnId = column[0];
+                    String columnType = column[1];
+
+                    if (pks.contains(columnId)){
+                        primaryTypes.add(typeGetter(columnType));
+                    } else {
+                        rowType.add(typeGetter(columnType));
+                    }
+                }
+
+
+                // If table is not created CREATE TABLE
+                BpTree bpTree = new BpTree(getTableTreePath(tableName), primaryTypes, rowType, BLOCKSIZE);
+
+                bpTree.close();
                 return 1;
             }
         } catch (Exception e) {
@@ -351,15 +390,20 @@ public class SymbolTableHashMap {
                 writer.close();
                 verboseParser.add(">> Changed metadata and wrote to file " + dbsJsonPath + "!");
 
-                // Create new destiny path
+                // Move the whole directory
                 verboseParser.add(">> Creating new destiny path!");
                 new File("metadata/" + newName).mkdir();
-                Path fileToMovePath = Paths.get("metadata/" + oldName + "/" + oldName + ".json");
-                Path targetPath = Paths.get("metadata/" + newName + "/" + newName + ".json");
+                Path fileToMovePath = Paths.get("metadata/" + oldName);
+                Path targetPath = Paths.get("metadata/" + newName);
                 verboseParser.add(">> Changes made into path " + targetPath + "!");
-
                 Files.move(fileToMovePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-                Files.delete(Paths.get("metadata/" + oldName));  // Delete old path
+
+                // Rename db json
+                fileToMovePath = Paths.get("metadata/" + newName + "/" + oldName + ".json");
+                targetPath = Paths.get("metadata/" + newName + "/" + newName + ".json");
+                verboseParser.add(">> Changes made into path " + targetPath + "!");
+                Files.move(fileToMovePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+
                 verboseParser.add(">> Deleted previous directory!");
 
             } catch (IOException e){
@@ -478,26 +522,6 @@ public class SymbolTableHashMap {
         return null;  // This should never happen
     }
 
-    /**
-     * Verifies if a table exists in the db in use
-     * @param idTable searched table
-     * @return True, if it exists; False, otherwise
-     */
-    public boolean tableExists(String idTable){
-        return dbInUseMetadata.get(idTable) != null;
-    }
-
-    public JSONObject getTable(String idTable){
-        return (JSONObject) dbInUseMetadata.get(idTable);
-    }
-
-    public JSONArray getPrimaryKey(String referencedTableId) {
-        JSONObject table = (JSONObject) dbInUseMetadata.get(referencedTableId);
-        JSONObject tableConstraints = (JSONObject) table.get("constraints");
-        return (JSONArray) tableConstraints.get("PK_" + referencedTableId);
-
-    }
-
     public List<String> getVerboseParser() { return verboseParser; }
 
     public void deleteDb(String dbId) {
@@ -517,14 +541,12 @@ public class SymbolTableHashMap {
             verboseParser.add(">> Deleted directory!");
 
             // Verify if it was the dbInUse and delete it
-            if (dbInUseId.equals(dbId)){
+            if (dbId.equals(dbInUseId)){
                 dbInUseId = null;
                 dbInUseMetadata = null;
                 File dbInUseFile = new File("metadata/lastDbUsed");
                 dbInUseFile.delete();
             }
-
-            // TODO ELIMINAR DE LAS TABLAS A LAS QUE ESTA HACIA REFERENCIA, LA REFERENCIA
 
         } catch (IOException e){
             e.printStackTrace();
@@ -601,7 +623,11 @@ public class SymbolTableHashMap {
             PrintWriter writer = new PrintWriter("metadata/" + dbInUseId + "/" + dbInUseId + ".json", "UTF-8");
             writer.write(dbInUseMetadata.toJSONString());
             writer.close();
-        } catch (FileNotFoundException | UnsupportedEncodingException e) {
+
+            // DELETE TREE
+            Files.delete(Paths.get(getTableTreePath(tableId)));  // Delete old path
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -735,11 +761,59 @@ public class SymbolTableHashMap {
 
     /**
      * This method is going to be used while inserting rows. It returns the names and types of the columns in a table.
-     * This method requires the table to exist and to have a dataBase in use.
+     * This method requires the table to exist and to have a dataBase in use. (ColumnId, ColumnType
      * @param tableId analyzed table
      * @return A list of arrays of length 2, being their values the next ones
      */
     public ArrayList<String[]> getTableColumnTypes(String tableId){
-        return new ArrayList<>();
+        JSONObject table = (JSONObject) dbInUseMetadata.get(tableId);
+        JSONObject columns = (JSONObject) table.get("columns");
+        Set<String> columnNames = columns.keySet();
+        ArrayList<String[]> columnsTuples = new ArrayList<>();
+        for (String columnId : columnNames) {
+            columnsTuples.add(new String[]{columnId, (String)((JSONObject) columns.get(columnId)).get("type")});  // Get type
+        }
+        return columnsTuples;
+    }
+
+
+    /**
+     * Verifies if a table exists in the db in use
+     * @param idTable searched table
+     * @return True, if it exists; False, otherwise
+     */
+    public boolean tableExists(String idTable){
+        return dbInUseMetadata.get(idTable) != null;
+    }
+
+    public JSONObject getTable(String idTable){
+        return (JSONObject) dbInUseMetadata.get(idTable);
+    }
+
+    public JSONArray getPrimaryKey(String referencedTableId) {
+        JSONObject table = (JSONObject) dbInUseMetadata.get(referencedTableId);
+        JSONObject tableConstraints = (JSONObject) table.get("constraints");
+        return (JSONArray) tableConstraints.get("PK_" + referencedTableId);
+    }
+
+    public Type typeGetter(String type){
+        switch (type){
+            case "INT":
+                return Type.INT;
+
+            case "FLOAT":
+                return Type.FLOAT;
+
+            case "DATE":
+                return Type.DATE;
+
+            case "CHAR":
+                return Type.CHARS;
+        }
+        return Type.INT;
+    }
+
+    String getTableTreePath(String tableName){
+        return "metadata/" + dbInUseId + "/" + tableName;
     }
 }
