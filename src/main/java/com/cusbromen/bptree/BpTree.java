@@ -547,7 +547,7 @@ public class BpTree {
                 KeyNode newKeyNode = new KeyNode(blockSize - 1);
                 newKeyNode.setHead(nextInsert + 1);
 
-//                child2.setParent(nextInsert);
+                child2.setParent(newKeyNode.loc());
 
                 newKeyNode.setKeys(rightNodeKeys);
                 newKeyNode.setChilds(keyTypes, recordTypes, rightNodeChilds, file);
