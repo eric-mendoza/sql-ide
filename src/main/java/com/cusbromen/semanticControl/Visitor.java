@@ -45,8 +45,11 @@ public class Visitor extends SqlBaseVisitor<String> {
         syntaxError = false;
         addingConstraint = false;
 
+        if (!getDbInUse().equals("none")) {
+            showNotificationDbInUse();
+        }
         // TODO: Este mensaje tendrá que ser mostrado por la gui
-        System.out.println("DB in use: " + getDbInUse());
+        //System.out.println("DB in use: " + getDbInUse());
     }
 
 
@@ -1194,6 +1197,13 @@ public class Visitor extends SqlBaseVisitor<String> {
         confirmationWindow.setContent(confVLayout);
 
         layout.getUI().getUI().addWindow(confirmationWindow);
+    }
+
+    private void showNotificationDbInUse() {
+        Notification notification = new Notification("Using dabatase " + getDbInUse(), "Initializing...");
+        notification.setDelayMsec(2000);
+        notification.setPosition(Position.TOP_CENTER);
+        notification.show(Page.getCurrent());
     }
 
     public void loadDbMetadata() {

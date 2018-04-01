@@ -110,6 +110,10 @@ public class MyUI extends UI {
         dbsTree.setDataProvider(inMemoryDataProvider);
         dbsTree.expand("DBMS Current databases");
 
+        if (!visitor.getDbInUse().equals("none")) {
+            dbsTree.select("DB: " + visitor.getDbInUse());
+        }
+
         // read metadata from jsons
         readMetadataFromJSON();
         updateDbsTree();
