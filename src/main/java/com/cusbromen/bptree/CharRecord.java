@@ -5,11 +5,16 @@ import java.io.RandomAccessFile;
 
 public class CharRecord implements Record {
 
+    private boolean isNull;
     private char[] val;
 
+    public CharRecord() {
+        isNull = true;
+    }
 
     public CharRecord(char[] val) {
         this.val = val;
+        isNull = false;
     }
 
     CharRecord(RandomAccessFile file) throws IOException{
@@ -39,6 +44,7 @@ public class CharRecord implements Record {
     public void writeToFile(RandomAccessFile file) throws IOException{
         file.writeInt(val.length);
         file.writeChars(new String(val));
+        file.writeBoolean(isNull);
     }
 
     @Override
@@ -48,10 +54,17 @@ public class CharRecord implements Record {
         for (int i = 0; i < size; i++) {
             val[i] = file.readChar();
         }
+        isNull = file.readBoolean();
     }
 
     @Override
     public long size() {
-        return 2 * val.length + 4;
+        return 2 * val.length + 5;
+    }
+
+
+    @Override
+    public boolean isNull() {
+        return isNull;
     }
 }

@@ -6,10 +6,16 @@ import java.io.RandomAccessFile;
 public class FloatRecord implements Record {
 
 
+    private boolean isNull;
     private Double val;
+
+    public FloatRecord() {
+        isNull = true;
+    }
 
     public FloatRecord(Double val) {
         this.val = val;
+        isNull = false;
     }
 
     FloatRecord(RandomAccessFile file) throws IOException{
@@ -29,15 +35,22 @@ public class FloatRecord implements Record {
     @Override
     public void writeToFile(RandomAccessFile file) throws IOException {
         file.writeDouble(val);
+        file.writeBoolean(isNull);
     }
 
     @Override
     public void readFromFile(RandomAccessFile file) throws IOException {
         val = file.readDouble();
+        isNull = file.readBoolean();
     }
 
     @Override
     public long size() {
-        return 8;
+        return 9;
+    }
+
+    @Override
+    public boolean isNull() {
+        return isNull;
     }
 }

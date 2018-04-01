@@ -24,4 +24,10 @@ public interface Record extends Comparable<Record>{
      */
     long size();
 
+    /**
+     * Checks if the record is null
+     * @return
+     */
+    boolean isNull();
+
 }
