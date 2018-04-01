@@ -211,7 +211,7 @@ public class BpTree {
      * @return All the record of the table
      * @throws IOException If something goes bad
      */
-    public  ArrayList<Tuple> all() throws IOException{
+    public  ArrayList<Pair> all() throws IOException{
         file.seek(root);
         // While is not a Leaf Node
         // we will reach the first node
@@ -222,7 +222,7 @@ public class BpTree {
         }
 
 
-        ArrayList<Tuple> rows = new ArrayList<>();
+        ArrayList<Pair> rows = new ArrayList<>();
         LeafNode leafNode;
 
         // We reached the first leaf node
@@ -230,10 +230,7 @@ public class BpTree {
         do {
             leafNode = new LeafNode(keyTypes, recordTypes, file);
             ArrayList<Pair> pairs = leafNode.getPairs();
-            for (Pair p :
-                    pairs) {
-                rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
-            }
+            rows.addAll(pairs);
             if (leafNode.getNextNode() > 0) {
                 file.seek(leafNode.getNextNode() + 1);
             }
@@ -244,23 +241,7 @@ public class BpTree {
 
     }
 
-    /**
-     * Method that joins a Key with a Tuple
-     * @param k key
-     * @param t tuple
-     * @return joined tuple
-     */
-    public Tuple joinKeyTuple(Key k, Tuple t) {
-        Tuple temp = new Tuple();
-        for (Record r :
-                k.getRecords()) {
-            temp.getRecords().add(r);
-        }
-        for (Record r : t.getRecords()) {
-            temp.getRecords().add(r);
-        }
-        return temp;
-    }
+
 
     /**
      * Method that gets a unique record per search
@@ -268,13 +249,13 @@ public class BpTree {
      * @return Tuple with the values
      * @throws IOException if something goes wrong
      */
-    public Tuple equalSearch(Key key) throws IOException{
+    public Pair equalSearch(Key key) throws IOException{
         LeafNode leafNode = search(key);
         ArrayList<Pair> pairs = leafNode.getPairs();
         for (Pair p :
                 pairs) {
             if (key.compareTo(p.getKey()) == 0){
-                return joinKeyTuple(p.getKey(), p.getTuple());
+                return p;
             }
         }
 
@@ -288,16 +269,16 @@ public class BpTree {
      * @return All rows that satisfy criteria
      * @throws IOException If something goes wrong
      */
-    public ArrayList<Tuple> rangeSearch(Key min, Key max) throws IOException{
+    public ArrayList<Pair> rangeSearch(Key min, Key max) throws IOException{
         LeafNode leafNode = search(min);
 
-        ArrayList<Tuple> rows = new ArrayList<>();
+        ArrayList<Pair> rows = new ArrayList<>();
         do {
             ArrayList<Pair> pairs = leafNode.getPairs();
             for (Pair p :
                     pairs) {
                 if (min.compareTo(p.getKey()) <= 0 && max.compareTo(p.getKey()) >= 0) {
-                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
+                    rows.add(p);
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -316,16 +297,16 @@ public class BpTree {
      * @return All rows that satisfy criteria
      * @throws IOException If something goes wrong
      */
-    public ArrayList<Tuple> upperRangeSearch(Key min, Key max) throws IOException{
+    public ArrayList<Pair> upperRangeSearch(Key min, Key max) throws IOException{
         LeafNode leafNode = search(min);
 
-        ArrayList<Tuple> rows = new ArrayList<>();
+        ArrayList<Pair> rows = new ArrayList<>();
         do {
             ArrayList<Pair> pairs = leafNode.getPairs();
             for (Pair p :
                     pairs) {
                 if (min.compareTo(p.getKey()) < 0 && max.compareTo(p.getKey()) >= 0) {
-                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
+                    rows.add(p);
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -344,16 +325,16 @@ public class BpTree {
      * @return All rows that satisfy criteria
      * @throws IOException If something goes wrong
      */
-    public ArrayList<Tuple> lowerRangeSearch(Key min, Key max) throws IOException{
+    public ArrayList<Pair> lowerRangeSearch(Key min, Key max) throws IOException{
         LeafNode leafNode = search(min);
 
-        ArrayList<Tuple> rows = new ArrayList<>();
+        ArrayList<Pair> rows = new ArrayList<>();
         do {
             ArrayList<Pair> pairs = leafNode.getPairs();
             for (Pair p :
                     pairs) {
                 if (min.compareTo(p.getKey()) <= 0 && max.compareTo(p.getKey()) > 0) {
-                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
+                    rows.add(p);
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -374,16 +355,16 @@ public class BpTree {
      * @return All rows that satisfy criteria
      * @throws IOException If something goes wrong
      */
-    public ArrayList<Tuple> strictRangeSearch(Key min, Key max) throws IOException{
+    public ArrayList<Pair> strictRangeSearch(Key min, Key max) throws IOException{
         LeafNode leafNode = search(min);
 
-        ArrayList<Tuple> rows = new ArrayList<>();
+        ArrayList<Pair> rows = new ArrayList<>();
         do {
             ArrayList<Pair> pairs = leafNode.getPairs();
             for (Pair p :
                     pairs) {
                 if (min.compareTo(p.getKey()) < 0 && max.compareTo(p.getKey()) > 0) {
-                    rows.add(joinKeyTuple(p.getKey(), p.getTuple()));
+                    rows.add(p);
                 }
             }
             if (leafNode.getNextNode() > 0) {
@@ -582,6 +563,7 @@ public class BpTree {
      * @param tuple tuple to set
      */
     public int updateTuple(Key key, Tuple tuple) {
+
         return 0x23241;
     }
 

@@ -31,6 +31,23 @@ public class Pair implements Comparable<Pair>{
         tuple.readFromFile(recordTypes, file);
     }
 
+    /**
+     * Method that joins a Key with a Tuple
+     * @return joined tuple
+     */
+    public Tuple getCombined() {
+        Tuple temp = new Tuple();
+        for (Record r :
+                key.getRecords()) {
+            temp.getRecords().add(r);
+        }
+        for (Record r : tuple.getRecords()) {
+            temp.getRecords().add(r);
+        }
+        return temp;
+    }
+
+
     public long size() {return key.size() + tuple.size();}
 
     public Key getKey() {
