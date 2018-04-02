@@ -8,6 +8,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1156,5 +1157,14 @@ public class SymbolTableHashMap {
             list.add(null);
         }
         return list;
+    }
+
+
+    public ArrayList<Queue<String>> search(ArrayList<String> SelectColumns, ArrayList<String> fromTables, ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
+        return null;
+    }
+
+    public JSONObject getDbInUse() {
+        return dbInUseMetadata;
     }
 }

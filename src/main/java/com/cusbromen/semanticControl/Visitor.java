@@ -416,14 +416,47 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitDelete(ctx);
     }
 
-    /** 'SELECT' ('*' | ID (',' ID)*)
-     'FROM' ID (',' ID)*
-     'WHERE' (condition)
-     ('ORDER' 'BY' order_by_statement (',' order_by_statement)*)* ';'
+    /**
+     *         'SELECT' ('*' | ID (',' ID)*)
+     *         from
+     *         ('WHERE' (check_exp))?
+     *         ('ORDER' 'BY' order_by_statement (',' order_by_statement)*)* ';'
      */
     @Override
     public String visitSelect(SqlParser.SelectContext ctx) {
-        return super.visitSelect(ctx);
+        // Make shure we are using a DB
+        JSONObject db = symbolTable.getDbInUse();
+        if (db == null){
+            semanticErrorsList.add("Error: Couldn't make SELECT operation. You haven't selected a DB. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        // Get the lists of ids
+        List<TerminalNode> columnsIdNodes = ctx.ID();
+        List<TerminalNode> tablesIdNodes = ctx.from().ID();
+
+        // Get tables columns
+        ArrayList<String> tablesIds = new ArrayList<>();
+        newColumns = new JSONObject();  // Restart variable to make shure its empty
+        for (TerminalNode tableNode : tablesIdNodes) {
+            String tableId = tableNode.getSymbol().getText();
+
+            // Verify if table exists and get columns
+            JSONObject table = (JSONObject) db.get(tableId);
+            if (table == null){
+                semanticErrorsList.add("Error: Couldn't complete SELECT operation, table <strong>" + tableId +"</strong> doesn't exists. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
+            tablesIds.add(tableId);
+        }
+
+
+
+        newConditionPostFix = new JSONArray();
+        String conditionResult = visit(ctx.check_exp());
+
+        return "void";
     }
 
     /** ID ('ASC' | 'DESC') */
