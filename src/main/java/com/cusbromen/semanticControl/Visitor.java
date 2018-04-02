@@ -415,17 +415,54 @@ public class Visitor extends SqlBaseVisitor<String> {
         // get info from AST
         List<TerminalNode> idList = ctx.ID();                                   // list of IDs
         List<SqlParser.DataContext> dataList = ctx.data();                      // list of data values
+        String tableId = idList.remove(0).getSymbol().getText();
 
+        // They must be using a DB
+        if (symbolTable.getDbInUse() == null){
+            semanticErrorsList.add("Error: You haven't selected a database yet. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        // Get table
+        JSONObject table = symbolTable.getTable(tableId);
+        if (table == null){
+            semanticErrorsList.add("Error: Table <strong>" + tableId + "</strong> doesn't exists in DB in use. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        // Verify that columns exists
+        newColumns = ((JSONObject) table.get("columns"));
+        newConditionPostFix = new JSONArray();
+        newColumnName = "";
+
+        ArrayList columnsToBeUpdated = new ArrayList();
+        for (TerminalNode idNode : idList) {
+            String columnId = idNode.getSymbol().getText();
+
+            if (!newColumns.containsKey(columnId)){
+                semanticErrorsList.add("Error: Couldn't update. Column <strong>" + columnId + "</strong> doesn't exists in table <strong>" + tableId + "</strong>. Line: " + ctx.start.getLine());
+                return "error";
+            }
+
+            columnsToBeUpdated.add(columnId);
+        }
+
+
+        // Analize the condition
         if (ctx.check_exp() != null){
-            newColumns = ((JSONObject) symbolTable.getTable(idList.get(0).getText()).get("columns"));
-            newConditionPostFix = new JSONArray();
             String conditionResult = visit(ctx.check_exp());
             if (conditionResult.equals("error")){
                 return "error";
             }
         }
 
-        String res = symbolTable.update(idList, dataList, newConditionPostFix);
+        String res = symbolTable.update(columnsToBeUpdated, dataList, newConditionPostFix, tableId);
+        if (symbolTable.temporalErrorMessage == null){
+            successMessages.add("Successfully " + res);
+        } else {
+            semanticErrorsList.add("Unsuccessfully " + res + " Line: " + ctx.start.getLine());
+        }
+
 
         return "void";
     }
@@ -458,6 +495,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         // Get tables columns
         newTablesIds = new ArrayList<>();
         newColumns = new JSONObject();  // Restart variable to make shure its empty
+        newColumnName = "";
         for (TerminalNode tableNode : tablesIdNodes) {
             String tableId = tableNode.getSymbol().getText();
 
@@ -484,7 +522,6 @@ public class Visitor extends SqlBaseVisitor<String> {
             }
 
             newColumnsNames.add(columnId);
-
         }
 
         // Get condition array
@@ -507,6 +544,9 @@ public class Visitor extends SqlBaseVisitor<String> {
         Pair<ArrayList<String>, ArrayList<Queue<String>>> result =  symbolTable.fancySearch(newColumnsNames, newTablesIds, newConditionPostFix, newOrderBy);
         addDataToGrid(result.getKey(), result.getValue());
 
+        if (symbolTable.temporalErrorMessage != null){
+            semanticErrorsList.add(symbolTable.temporalErrorMessage + " Line: " + ctx.start.getLine());
+        }
 
 
         return "void";
@@ -1123,7 +1163,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             }
 
             else {
-                semanticErrorsList.add("Error: Couldn't create CONSTRAINT CHECK, the column <strong>" + op1 +"</strong> doesn't exists. Line: " + ctx.getStart().getLine());
+                semanticErrorsList.add("Error: Couldn't create evaluate CHECK, the column <strong>" + op1 +"</strong> doesn't exists. Line: " + ctx.getStart().getLine());
                 return "error";
             }
 
@@ -1161,7 +1201,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             }
 
             else {
-                semanticErrorsList.add("Error: Could not create CONSTRAINT CHECK, the column <strong>" + op2 +"</strong> doesn't exists. Line: " + ctx.getStart().getLine());
+                semanticErrorsList.add("Error: Could not create evaluate CHECK, the column <strong>" + op2 + "</strong> doesn't exists. Line: " + ctx.getStart().getLine());
                 return "error";
             }
 
