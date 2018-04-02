@@ -95,17 +95,17 @@ data
 
 
 update
-    :   'UPDATE' ID 'SET' ID '=' (',' ID)* ('WHERE' condition)* ';'
+    :   'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)* ('WHERE' check_exp)* ';'
     ;
 
 delete
-    :   'DELETE' 'FROM' ID ('WHERE' condition)* ';'
+    :   'DELETE' 'FROM' ID ('WHERE' check_exp)* ';'
     ;
 
 select
     :   'SELECT' ('*' | ID (',' ID)*)
         'FROM' ID (',' ID)*
-        'WHERE' (condition)
+        'WHERE' (check_exp)
         ('ORDER' 'BY' order_by_statement (',' order_by_statement)*)* ';'
     ;
 
