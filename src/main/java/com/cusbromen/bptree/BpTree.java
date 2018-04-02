@@ -525,7 +525,7 @@ public class BpTree {
      * Insertion of char leaf into the B+ tree
      * @param row Table row to insert
      */
-    public void insert(Key key, Tuple row) throws IOException {
+    public void insert(Key key, Tuple row) throws IOException, InvalidParameterException {
 
         LeafNode leafNode = uniqueSearch(key);
         boolean isFull = leafNode.getAvailableSpace()
