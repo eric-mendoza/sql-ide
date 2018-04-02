@@ -79,11 +79,6 @@ public class Tuple {
         size += record.size();
     }
 
-    public void setRecord(int i, Record record){
-        records.remove(i);
-        records.add(record);
-    }
-
 
     /**
      * Get column as int
