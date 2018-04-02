@@ -1160,7 +1160,7 @@ public class SymbolTableHashMap {
     }
 
 
-    public ArrayList<Queue<String>> search(ArrayList<String> SelectColumns, ArrayList<String> fromTables, ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
+    public ArrayList<Tuple> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables, ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
         return null;
     }
 
