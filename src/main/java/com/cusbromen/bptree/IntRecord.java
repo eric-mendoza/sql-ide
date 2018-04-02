@@ -10,6 +10,7 @@ public class IntRecord implements Record {
 
 
     public IntRecord() {
+        val = -2147483647;
         isNull = true;
     }
 

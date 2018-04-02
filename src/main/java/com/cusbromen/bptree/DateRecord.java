@@ -10,8 +10,10 @@ public class DateRecord implements Record {
     private Date val;
 
     public DateRecord() {
+        val = new Date();
         isNull = true;
     }
+
 
     public DateRecord(Date val) {
         this.val = val;

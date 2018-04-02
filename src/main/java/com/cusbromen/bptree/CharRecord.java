@@ -9,8 +9,10 @@ public class CharRecord implements Record {
     private char[] val;
 
     public CharRecord() {
+        val = new char[0];
         isNull = true;
     }
+
 
     public CharRecord(char[] val) {
         this.val = val;

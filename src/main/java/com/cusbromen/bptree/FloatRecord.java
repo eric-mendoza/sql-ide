@@ -10,6 +10,7 @@ public class FloatRecord implements Record {
     private Double val;
 
     public FloatRecord() {
+        val = -2147483647.0;
         isNull = true;
     }
 
