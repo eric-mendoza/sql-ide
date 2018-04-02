@@ -113,6 +113,12 @@ public interface SqlVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitSelect(SqlParser.SelectContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link SqlParser#from}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFrom(SqlParser.FromContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link SqlParser#order_by_statement}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

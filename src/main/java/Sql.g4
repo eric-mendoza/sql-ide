@@ -7,6 +7,7 @@ grammar Sql;
 NOT: 'NOT';
 OR : 'OR';
 AND : 'AND';
+REFERENCES: 'REFERENCES';
 
 fragment DIGIT:     '0'..'9' ;
 NUMBER:             DIGIT(DIGIT)* ;
@@ -81,7 +82,7 @@ show_cols_from
     ;
 
 insert_into
-    :   'INSERT' 'INTO' ID (ID (',' ID)*)* 'VALUES' (column_insert (',' column_insert)*) ';'
+    :   'INSERT' 'INTO' ID ('(' (ID (',' ID)*)* ')')? 'VALUES' (column_insert (',' column_insert)*) ';'
     ;
 
 column_insert
@@ -94,18 +95,22 @@ data
 
 
 update
-    :   'UPDATE' ID 'SET' ID '=' (',' ID)* ('WHERE' condition)* ';'
+    :   'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';'
     ;
 
 delete
-    :   'DELETE' 'FROM' ID ('WHERE' condition)* ';'
+    :   'DELETE' 'FROM' ID ('WHERE' check_exp)* ';'
     ;
 
 select
     :   'SELECT' ('*' | ID (',' ID)*)
-        'FROM' ID (',' ID)*
-        'WHERE' (condition)
+        from
+        ('WHERE' (check_exp))?
         ('ORDER' 'BY' order_by_statement (',' order_by_statement)*)* ';'
+    ;
+
+from
+    :   'FROM' ID (',' ID)*
     ;
 
 order_by_statement
@@ -161,7 +166,7 @@ keys_constraint
     ;
 
 foreignKeyReferences
-    :   'REFERENCES' ID ('(' ID (',' ID)* ')')*
+    :   REFERENCES ID ('(' ID (',' ID)* ')')*
     ;
 
 check_exp
