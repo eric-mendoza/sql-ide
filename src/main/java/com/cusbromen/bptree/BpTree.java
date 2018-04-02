@@ -1086,7 +1086,7 @@ public class BpTree {
     public void insert(Tuple t, int keySize) throws IOException{
         Key key = new Key();
         Tuple tt = new Tuple();
-        for (int i = 0; i < t.size(); i++) {
+        for (int i = 0; i < t.getRecords().size(); i++) {
             if (i < keySize)  {
                 key.add(t.getRecords().get(i));
             }else {
