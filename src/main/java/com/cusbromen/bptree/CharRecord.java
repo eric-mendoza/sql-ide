@@ -69,4 +69,9 @@ public class CharRecord implements Record {
     public boolean isNull() {
         return isNull;
     }
+
+    @Override
+    public String getStringVal() {
+        return String.valueOf(getVal());
+    }
 }

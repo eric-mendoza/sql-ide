@@ -10,6 +10,7 @@ import com.vaadin.shared.Position;
 import com.vaadin.shared.ui.ContentMode;
 import com.vaadin.ui.*;
 import com.vaadin.ui.renderers.HtmlRenderer;
+import javafx.util.Pair;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
@@ -33,6 +34,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     private boolean syntaxError, addingConstraint, primaryKeyCreated, columnNullable;
     private Layout layout, consolePanelLayout;
     private Grid<Queue<String>> showDataGrid;
+    private ArrayList<String> newColumnsNames;
 
     public Visitor() {
         this.semanticErrorsList = new ArrayList<>();
@@ -47,7 +49,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         addingConstraint = false;
 
         if (!getDbInUse().equals("none")) {
-            //showNotificationDbInUse(); // TODO lo quito para mientras huehuehue
+            showNotificationDbInUse(); // TODO lo quito para mientras huehuehue
         }
         // TODO: Este mensaje tendrá que ser mostrado por la gui
         System.out.println("DB in use: " + getDbInUse());
@@ -75,7 +77,6 @@ public class Visitor extends SqlBaseVisitor<String> {
         String oldName = ctx.ID(0).getSymbol().getText();
         String newName = ctx.ID(1).getSymbol().getText();
 
-        // TODO rename solo mueve el archivo de metadata, no el futuro Btree, hay que hacerlo recursivo para mover todos
         //Verify if it's actual database
         int result = symbolTable.renameDb(oldName, newName);
 
@@ -469,7 +470,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
 
         // Get SELECT columnsid
-        ArrayList<String> columnsIds = new ArrayList<>();
+        newColumnsNames = new ArrayList<>();
         for (TerminalNode columnNode : columnsIdNodes) {
             String columnId = columnNode.getSymbol().getText();
 
@@ -479,7 +480,7 @@ public class Visitor extends SqlBaseVisitor<String> {
                 return "error";
             }
 
-            columnsIds.add(columnId);
+            newColumnsNames.add(columnId);
 
         }
 
@@ -500,7 +501,10 @@ public class Visitor extends SqlBaseVisitor<String> {
             }
 
         }
-        symbolTable.searchRaw(columnsIds, newTablesIds, newConditionPostFix, newOrderBy);
+        Pair<ArrayList<String>, ArrayList<Queue<String>>> result =  symbolTable.fancySearch(newColumnsNames, newTablesIds, newConditionPostFix, newOrderBy);
+        addDataToGrid(result.getKey(), result.getValue());
+
+
 
         return "void";
     }
@@ -512,9 +516,16 @@ public class Visitor extends SqlBaseVisitor<String> {
         String id = ctx.ID().getSymbol().getText();
 
         // Verify if ID is on selected rows to show
-        if (!newTablesIds.contains(id)){
-            semanticErrorsList.add("Error: Couldn't complete SELECT operation, the column <strong>" + id +"</strong> isn't in SELECT clause . Line: " + ctx.start.getLine());
-            return "error";
+        if (newColumnsNames.size() > 0){
+            if (!newTablesIds.contains(id)){
+                semanticErrorsList.add("Error: Couldn't complete SELECT operation, the column <strong>" + id +"</strong> in ORDER BY isn't in SELECT clause . Line: " + ctx.start.getLine());
+                return "error";
+            }
+        } else {
+            if (newColumns.get(id) == null){
+                semanticErrorsList.add("Error: Couldn't complete SELECT operation, the column <strong>" + id +"</strong> ORDER BY doesn't exists in tables. Line: " + ctx.start.getLine());
+                return "error";
+            }
         }
 
         newOrderBy.add(new String[]{id, ctx.op.getText()});
@@ -1128,7 +1139,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             op1Type = "NUM";
 
             // Add to postfix
-            newConditionPostFix.add(number);
+            newConditionPostFix.add(op1);
         }
 
         Token op2Ctx = ctx.op2;
@@ -1164,7 +1175,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             op2Type = "NUM";
 
             // Add to postfix
-            newConditionPostFix.add(number);
+            newConditionPostFix.add(op2);
         }
 
         // Verify if types are comparable (They have to have the same type)

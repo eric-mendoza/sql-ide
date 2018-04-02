@@ -2,6 +2,7 @@ package com.cusbromen.bptree;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class DateRecord implements Record {
@@ -56,5 +57,11 @@ public class DateRecord implements Record {
     @Override
     public boolean isNull() {
         return isNull;
+    }
+
+    public String getStringVal() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+
+        return String.valueOf(dateFormat.format(getVal()));
     }
 }

@@ -882,7 +882,7 @@ public class SymbolTableHashMap {
         // 2. Value to update for index i
 
         List<String> columnNames = new ArrayList<>();               // names for columns to change
-        Queue<String> newValues = new LinkedList<>();                 // values for columns
+        List<String> newValues = new ArrayList<>();                 // values for columns
 
         // let's fill the columnNames first
         for (int i = 1; i < idList.size(); i++) {
@@ -936,17 +936,17 @@ public class SymbolTableHashMap {
 
                 if (type.equalsIgnoreCase("INT")) {
                     if (columnNames.contains(currentColName)) {
-                        tuple.add(new IntRecord(Integer.parseInt(newValues.poll())));
+                        //tuple.add(new IntRecord(Integer.parseInt(newValues.poll())));
                     } else { tuple.add(new IntRecord()); }
 
                 } else if (type.equalsIgnoreCase("CHAR")) {
                     if (columnNames.contains(currentColName)) {
-                        tuple.add(new CharRecord(newValues.poll().toCharArray()));
+                        //tuple.add(new CharRecord(newValues.poll().toCharArray()));
                     } else { tuple.add(new CharRecord()); }
 
                 } else if (type.equalsIgnoreCase("FLOAT")) {
                     if (columnNames.contains(currentColName)) {
-                        tuple.add(new FloatRecord(Double.parseDouble(newValues.poll())));
+                        //tuple.add(new FloatRecord(Double.parseDouble(newValues.poll())));
                     } else { tuple.add(new FloatRecord()); }
 
                 } else if (type.equalsIgnoreCase("DATE")) {
@@ -1199,8 +1199,13 @@ public class SymbolTableHashMap {
                         Integer myInt = Integer.valueOf(value);
                         return new IntRecord(myInt);
                     } catch (NumberFormatException e){
-                        temporalErrorMessage = "Error: Invalid INT <strong>" + value + "</strong> at insert.";
-                        return null;
+                        try {
+                            Integer myInt = Double.valueOf(value).intValue();
+                            return new IntRecord(myInt);
+                        } catch (NumberFormatException b){
+                            temporalErrorMessage = "Error: Invalid INT <strong>" + value + "</strong> at insert.";
+                            return null;
+                        }
                     }
 
                 case "FLOAT":
@@ -1267,13 +1272,149 @@ public class SymbolTableHashMap {
 
     public ArrayList<Pair> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
                                       ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
+        try {
 
+            // Type of FROM
+            // CASE 1: Simple search
+            if (fromTables.size() == 1){
+                // Get Columns and Types for quick quearies
+                String tableId = fromTables.get(0);
+                LinkedHashMap<String, String> columnsAndTypes = getTableColumnTypes(getTable(tableId)); // (id, type)
+                ArrayList<String> pkIds = getPrimaryKey(tableId); // Get primary key of unique table
 
+                // Verify type of condition
+                //CASE 1.1: SIMPLE COMPLEX SEARCH
+                if (postFixWhereCondition.size() > 3){
+                    System.out.println("Más tarde se realizará");
+                }
+
+                // CASE 1.2: SIMPLE SIMPLE SEARCH
+                else {
+                    Key key = new Key();
+
+                    // Verify if PK is involved in the search
+                    String pkInvolved, value;
+                    int positionKey;
+                    if (pkIds.contains(postFixWhereCondition.get(0))){
+                        pkInvolved = postFixWhereCondition.get(0);
+                        positionKey = 0;
+                        value = postFixWhereCondition.get(1);
+
+                    } else if (pkIds.contains(postFixWhereCondition.get(1))){
+                        pkInvolved = postFixWhereCondition.get(1);
+                        positionKey = 1;
+                        value = postFixWhereCondition.get(0);
+                    }
+                    else {
+                        pkInvolved = null;
+                        value = "";
+                        positionKey = 0;
+                    }
+
+                    // CASE 1.2.1: FAST SEARCH
+                    if (pkInvolved != null){
+                        // Get the data type of the pk involved
+                        String pkType = columnsAndTypes.get(pkInvolved);
+                        key.add(recordGenerator(value, pkType, null, false));
+
+                        // Open tree
+                        BpTree bpTree = new BpTree(getTableTreePath(tableId));
+
+                        // Search in tree with special search method
+                        ArrayList<Pair> resultSearch = simpleFastSearch(key, bpTree, postFixWhereCondition.get(0), positionKey);
+
+                        bpTree.close();
+
+                        return resultSearch;
+                    }
+
+                    // CASE 1.2.2: All search
+                    else {
+
+                    }
+                }
+            }
+
+            // Cross product search
+            else {
+                System.out.println("LOLOLOLOLOL");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         return null;
     }
 
+    private ArrayList<Pair> simpleFastSearch(Key key, BpTree bpTree, String operand, int positionKey) throws IOException {
+        ArrayList<Pair> result = new ArrayList<>();
+        switch (operand){
+            case "=":
+                result.add(bpTree.equalSearch(key));
+                return result;
+
+            case ">":
+                if (positionKey == 0) return bpTree.lowerRangeSearch(key);
+                else return bpTree.upperRangeSearch(key);
+
+            case "<":
+                if (positionKey == 1) return bpTree.lowerRangeSearch(key);
+                else return bpTree.upperRangeSearch(key);
+
+            case ">=":
+                if (positionKey == 0) return bpTree.lowerStrictRangeSearch(key);
+                else return bpTree.upperStrictRangeSearch(key);
+
+            case "<=":
+                if (positionKey == 1) return bpTree.lowerStrictRangeSearch(key);
+                else return bpTree.upperStrictRangeSearch(key);
+
+            default:
+                result = new ArrayList<>();
+                result.add(bpTree.equalSearch(key));
+                return result;
+        }
+    }
+
     public JSONObject getDbInUse() {
         return dbInUseMetadata;
+    }
+
+    public javafx.util.Pair<ArrayList<String>, ArrayList<Queue<String>>> fancySearch(ArrayList<String> selectColumns, ArrayList<String> fromTables,
+                                                                                     ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples) {
+
+        ArrayList<Pair> result = searchRaw(selectColumns, fromTables, postFixWhereCondition, orderByTuples);
+
+        // Now we must select the selected columns
+        if (fromTables.size() == 1){
+            // We must get a Array<String> with the columns ordered
+            String tableId = fromTables.get(0);
+            JSONObject table = getTable(tableId);
+            LinkedHashMap<String, String> columnsIdsAndTypes = getTableColumnTypes(table);
+            ArrayList<String> pkIds = getPrimaryKey(tableId);
+            Set<String> columnIds = columnsIdsAndTypes.keySet();
+            for (String pkId : pkIds) {
+                columnIds.remove(pkId);
+            }
+
+            // Create arraylist with all the columns in order of tuple.getcombined
+            pkIds.addAll(columnIds);
+
+            // Time to walk all the resulting rows
+            ArrayList<Queue<String>> rows = new ArrayList<>();
+            Queue<String> newRow;
+            for (Pair rowDivided : result) {
+                newRow = new PriorityQueue<>();
+                ArrayList<Record> records = rowDivided.getCombined().getRecords();
+                for (Record record : records) {
+                    newRow.add(record.getStringVal());
+                }
+                rows.add(newRow);
+            }
+
+            return new javafx.util.Pair<>(pkIds, rows);
+        }
+        return null;
+
     }
 }

@@ -54,4 +54,8 @@ public class FloatRecord implements Record {
     public boolean isNull() {
         return isNull;
     }
+
+    public String getStringVal() {
+        return String.valueOf(getVal());
+    }
 }

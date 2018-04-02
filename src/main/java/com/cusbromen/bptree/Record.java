@@ -30,4 +30,6 @@ public interface Record extends Comparable<Record>{
      */
     boolean isNull();
 
+    String getStringVal();
+
 }
