@@ -867,12 +867,15 @@ public class SymbolTableHashMap {
     }
 
     /**
-     * 'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)* ('WHERE' check_exp)* ';'
+     * 'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';'
      * @param idList
      * @param conditionList
      * @return
      */
-    public String update(List<TerminalNode> idList, List<SqlParser.Check_expContext> conditionList) {
+    public String update(List<TerminalNode> idList,
+                         List<SqlParser.DataContext> dataList,
+                         List<SqlParser.Check_expContext> conditionList,
+                         ArrayList<String> postFixWhereCondition) {
         // Finish gathering info
         String tableName = idList.get(0).getText();                 // table to update
 
@@ -880,21 +883,27 @@ public class SymbolTableHashMap {
         // 1. Column names for index i
         // 2. Value to update for index i
 
-        List<String> columnNames = new LinkedList<>();              // names for columns to change
-        List<String> newValues = new LinkedList<>();                // values for columns
+        List<String> columnNames = new ArrayList<>();               // names for columns to change
+        List<String> newValues = new ArrayList<>();                 // values for columns
 
-        // traverse idList to get column names and values
+        // let's fill the columnNames first
         for (int i = 1; i < idList.size(); i++) {
-            // odd indexes for IDs are column values
-            if (i % 2 != 0) {
-                columnNames.add(idList.get(i).getText());
-            } else {
-                // even indexes for IDs are values
-                newValues.add(idList.get(i).getText());
-            }
+            columnNames.add(idList.get(i).getText());
+        }
+
+        // now lets fill the dataList
+        for (SqlParser.DataContext data : dataList) {
+            newValues.add(data.getText());
         }
 
         System.out.println("table Name: " + tableName + "\ncolumn names: " + columnNames + "\nnew values: " + newValues);
+
+        // TODO: make update
+        ArrayList<String> tables = new ArrayList<>();                // list of tables for SELECT, just one table
+        tables.add(tableName);
+
+        // Call searchRaw to get SELECT * FROM table
+        ArrayList<Tuple> selectResult = searchRaw(new ArrayList<>(), tables, postFixWhereCondition, null);
 
         return null;
     }

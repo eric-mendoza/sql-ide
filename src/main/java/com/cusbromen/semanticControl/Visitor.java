@@ -404,14 +404,22 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitColumn_insert(ctx);
     }
 
-    /** 'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)* ('WHERE' check_exp)* ';' */
+    /** 'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';' */
     @Override
     public String visitUpdate(SqlParser.UpdateContext ctx) {
         // get info from AST
         List<TerminalNode> idList = ctx.ID();                                   // list of IDs
         List<SqlParser.Check_expContext> conditionList = ctx.check_exp();       // list of conditions after WHERE
+        List<SqlParser.DataContext> dataList = ctx.data();                      // list of data values
 
-        String res = symbolTable.update(idList, conditionList);
+        newColumns = ((JSONObject) symbolTable.getTable(idList.get(0).getText()).get("columns"));
+        newConditionPostFix = new JSONArray();
+        String conditionResult = visit(ctx.check_exp());
+        if (conditionResult.equals("error")){
+            return "error";
+        }
+
+        String res = symbolTable.update(idList, dataList, conditionList, newConditionPostFix);
 
         return "void";
     }
