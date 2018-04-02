@@ -1077,6 +1077,26 @@ public class BpTree {
 
     }
 
+    /**
+     * Method that separates and inserts
+     * @param t tuple to seprate
+     * @param keySize key size
+     * @throws IOException If something goes bad
+     */
+    public void insert(Tuple t, int keySize) throws IOException{
+        Key key = new Key();
+        Tuple tt = new Tuple();
+        for (int i = 0; i < t.size(); i++) {
+            if (i < keySize)  {
+                key.add(t.getRecords().get(i));
+            }else {
+                tt.add(t.getRecords().get(i));
+            }
+        }
+        insert(key, tt);
+
+    }
+
 
     /**
      * Method to redistribute  the tree after delete
