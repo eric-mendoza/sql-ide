@@ -229,6 +229,9 @@ public class Visitor extends SqlBaseVisitor<String> {
                 semanticErrorsList.add("Error: Table <strong>" + newTableName + "</strong> already exists in database <strong>" + dbInUse + "</strong>. Line: " + ctx.start.getLine());
             } else if (createTableResult == 3) {
                 semanticErrorsList.add("Error: Two foreign keys have the same ID. Couldn't create table <strong>" + newTableName + "</strong>. Line: " + ctx.start.getLine());
+            } else if (createTableResult == 4){
+                semanticErrorsList.add("Error: The primary keys must be declared as NOT NULL. Line: " + ctx.getStart().getLine());
+                return "error";
             }
             return "void";
         } else {
@@ -677,12 +680,6 @@ public class Visitor extends SqlBaseVisitor<String> {
     @Override
     public String visitPrimaryKey(SqlParser.PrimaryKeyContext ctx) {
         List<TerminalNode> ids = ctx.ID();
-
-        // Verify if PK is NOT NULLABLE
-        if (!columnNullable){
-            semanticErrorsList.add("Error: The primary key must be declared as NOT NULL. Line: " + ctx.getStart().getLine());
-            return "error";
-        }
 
         // Analyse the constraint name, it should begin with PK_ and end with table name
         String constraintId = ids.get(0).getSymbol().getText();

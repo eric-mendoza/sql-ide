@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.security.InvalidParameterException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -214,7 +215,7 @@ public class SymbolTableHashMap {
      * @param tableName the name of the new table
      * @param tableProps is the JSON with the properties of the table
      * @param newReferencedTables This tuple contains (referencedTableId, constraintId)
-     * @return 2, if table already existed; 1, success; 0: error; 3: constraint duplicated
+     * @return 2, if table already existed; 1, success; 0: error; 3: constraint duplicated; 4: pk not nullable
      */
     public int createTable(String tableName, JSONObject tableProps, ArrayList<String[]> newReferencedTables) {
         verboseParser.add(">> Will try to create metadata for table " + tableName);
@@ -229,7 +230,6 @@ public class SymbolTableHashMap {
                 return 2;
 
             } else {
-
                 verboseParser.add(">> Writing changes to file " + dbPath);
 
                 // Verify if there are foreign keys references to create
@@ -256,6 +256,19 @@ public class SymbolTableHashMap {
                     }
                 }
 
+                // Get the names of primary key
+                ArrayList<String> pks = getPrimaryKey(tableProps, tableName);
+
+                // If there are no Primary keys, create surrogate pk
+                boolean surrogatePk = pks == null;
+
+                // Verify that primary keys are not Nullable
+                if (!surrogatePk){
+                    if (!verifyPrimaryKeysAreNotNullable(pks, tableProps)){
+                        return 4;
+                    }
+                }
+
                 // Save new table
                 dbInUseMetadata.put(tableName, tableProps);
 
@@ -278,12 +291,6 @@ public class SymbolTableHashMap {
                 /*
                     BTREE Management
                  */
-                // Get the names of primary key
-                ArrayList<String> pks = getPrimaryKey(tableName);
-
-                // If there are no Primary keys, create surrogate pk
-                boolean surrogatePk = pks == null;
-
 
                 // Get columns (id, type)
                 ArrayList<String[]> columns = getTableColumnTypes(tableName);
@@ -819,6 +826,23 @@ public class SymbolTableHashMap {
         return (JSONArray) tableConstraints.get("PK_" + referencedTableId);
     }
 
+    public JSONArray getPrimaryKey(JSONObject table, String referencedTableId) {
+        JSONObject tableConstraints = (JSONObject) table.get("constraints");
+        return (JSONArray) tableConstraints.get("PK_" + referencedTableId);
+    }
+
+    public boolean verifyPrimaryKeysAreNotNullable(ArrayList<String> keysId, JSONObject table){
+        JSONObject columns = (JSONObject) table.get("columns");
+        for (String keyId : keysId) {
+            JSONObject column = (JSONObject) columns.get(keyId);
+            if (column.get("nullable") == null){
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public Type typeGetter(String type){
         switch (type){
             case "INT":
@@ -849,13 +873,15 @@ public class SymbolTableHashMap {
                     ArrayList<String> columnsId = new ArrayList<>(columnsAndTypes.keySet());
                     ArrayList<String> insertingRow, columnsToInsertId = new ArrayList<>();
                     ArrayList<ArrayList<String>> insertingRows = new ArrayList<>();
+                    JSONObject columns = (JSONObject) table.get("columns");
 
                     for (TerminalNode token : columnsToInsert) {
                         String columnIdToInsert = token.getSymbol().getText();
-                        JSONObject column = (JSONObject) table.get(columnIdToInsert);
+                        JSONObject column = (JSONObject) columns.get(columnIdToInsert);
 
                         if (column == null){
-                            return "Error: Couldn't insert row. Column <strong>" + columnIdToInsert + "</strong> doesn't exists in table <strong>" + tableId + "</strong>.";
+                            temporalErrorMessage = "Error: Couldn't insert row. Column <strong>" + columnIdToInsert + "</strong> doesn't exists in table <strong>" + tableId + "</strong>.";
+                            return temporalErrorMessage;
                         }
 
                         columnsToInsertId.add(columnIdToInsert);
@@ -866,6 +892,12 @@ public class SymbolTableHashMap {
                     if (columnsToInsert.size() > 0){
                         for (ArrayList<String> row : rowsToInsert) {
                             insertingRow = generateNullList(columnsId.size());  // Generate new null row
+
+                            // Verify if row has the right number of columns
+                            if (row.size() != columnsToInsert.size()){
+                                temporalErrorMessage = "Error: Couldn't insert row </strong>" + row.toString() + "</strong> because it exceeds the number of columns specified to insert.";
+                                return temporalErrorMessage;
+                            }
 
                             // Analize each value to be inserted
                             for (int i = 0; i < row.size(); i++) {
@@ -888,6 +920,12 @@ public class SymbolTableHashMap {
                         for (ArrayList<String> row : rowsToInsert) {
                             insertingRow = generateNullList(columnsId.size());  // Generate new null row
 
+                            // Verify if row has the right number of columns
+                            if (row.size() != columnsId.size()){
+                                temporalErrorMessage = "Error: Couldn't insert row </strong>" + row.toString() + "</strong> because it exceeds the number of columns in table.";
+                                return temporalErrorMessage;
+                            }
+
                             // Analize each value to be inserted
                             for (int i = 0; i < row.size(); i++) {
                                 String value = row.get(i);
@@ -904,23 +942,24 @@ public class SymbolTableHashMap {
                     }
 
                     ArrayList<String> primaryKeysColumnNames = getPrimaryKey(tableId);
+                    boolean surrogatePk = false;
+                    if (primaryKeysColumnNames == null) surrogatePk = true;
                     BpTree bpTree = new BpTree(getTableTreePath(tableId));
                     for (ArrayList<String> inRow : insertingRows) {
+                        columnsId = new ArrayList<>(columnsAndTypes.keySet());
                         // Separate PK from the other columns
                         ArrayList<String> primaryValues = new ArrayList<>();
-                        for (String pk : primaryKeysColumnNames) {
-                            int pkIndex = columnsId.indexOf(pk);  // Get primary key index on columns
-                            columnsId.remove(pk);
-                            primaryValues.add(pkIndex, inRow.remove(pkIndex));  // Remove and insert pk value
+                        if (!surrogatePk){
+                            for (String pk : primaryKeysColumnNames) {
+                                int pkIndex = columnsId.indexOf(pk);  // Get primary key index on columns
+                                columnsId.remove(pk);
+                                primaryValues.add(inRow.remove(pkIndex));  // Remove and insert pk value
+                            }
+                        } else {
+                            primaryValues.add(null);
                         }
 
                         // Verify constraints
-                        // Verify types
-
-                        // Verify NON NULL
-
-                        // Verify Primary Key
-
                         // Verify Foreign Key
 
                         // Verify Checks
@@ -933,14 +972,23 @@ public class SymbolTableHashMap {
 
                         // Pk
                         for (int i = 0; i < primaryValues.size(); i++) {
-                            String value = primaryValues.get(i);
-                            String columnId = primaryKeysColumnNames.get(i);
-                            String type = columnsAndTypes.get(columnId);
+                            String value, columnId, type;
+                            if (!surrogatePk){
+                                value = primaryValues.get(i);
+                                columnId = primaryKeysColumnNames.get(i);
+                                type = columnsAndTypes.get(columnId);
+                            } else {
+                                // Surrogate key values
+                                value = null;
+                                columnId = "PK_" + tableId;
+                                type = "DATE";
+                            }
 
                             // Verify length
-                            Integer charLength = getColumnRequiredLength(table, columnId);
+                            Integer charLength = null;
+                            if (!surrogatePk) charLength = getColumnRequiredLength(table, columnId);
 
-                            Record recordToInsert = recordGenerator(value, type, charLength);
+                            Record recordToInsert = recordGenerator(value, type, charLength, surrogatePk);
 
                             if (recordToInsert == null){
                                 return temporalErrorMessage;
@@ -955,10 +1003,19 @@ public class SymbolTableHashMap {
                             String columnId = columnsId.get(i);
                             String type = columnsAndTypes.get(columnId);
 
+                            // Velify Nullability
+                            if (value == null){
+                                boolean columnNullable = isColumnNullable(columns, columnId);
+                                if (!columnNullable){
+                                    temporalErrorMessage = "Error: Column <strong>" + columnId + "</strong> can't have nullable values.";
+                                    return temporalErrorMessage;
+                                }
+                            }
+
                             // Verify length
                             Integer charLength = getColumnRequiredLength(table, columnId);
 
-                            Record recordToInsert = recordGenerator(value, type, charLength);
+                            Record recordToInsert = recordGenerator(value, type, charLength, false);
 
                             if (recordToInsert == null){
                                 return temporalErrorMessage;
@@ -968,7 +1025,12 @@ public class SymbolTableHashMap {
                         }
 
                         // Insert in tree
-                        bpTree.insert(key, row);
+                        try {
+                            bpTree.insert(key, row);
+                        } catch (InvalidParameterException e){
+                            temporalErrorMessage = "Error: Couldn't insert row <strong>" + inRow.toString() + "</strong> because primary keys already exists.";
+                            return temporalErrorMessage;
+                        }
                     }
 
                     // Close tree
@@ -976,8 +1038,8 @@ public class SymbolTableHashMap {
 
                     // Augment number of records on table
                     augmentRecordsOnTable(table, insertingRows.size());
-
-                    return "Successfully inserted <strong>" + insertingRows + "</strong> rows in table <strong>" + tableId + "</strong>.";
+                    // TODO Cambiar el mensaje pa insertingRows.size()
+                    return "Successfully inserted <strong>" + insertingRows.toString() + "</strong> rows in table <strong>" + tableId + "</strong>.";
                 } else {
                     temporalErrorMessage = "Error: Table doesn't exists: <strong>" + tableId + "</strong> in insert.";
                     return temporalErrorMessage;
@@ -988,9 +1050,13 @@ public class SymbolTableHashMap {
             }
         } catch (IOException e) {
             e.printStackTrace();
-            temporalErrorMessage = "Error: Error writing while inserting rows.";
+            temporalErrorMessage = "Error: Error while writing rows in the tree.";
             return temporalErrorMessage;
         }
+    }
+
+    private boolean isColumnNullable(JSONObject columns, String columnId) {
+        return null == ((JSONObject) columns.get(columnId)).get("nullable");
     }
 
     private Integer getColumnRequiredLength(JSONObject table, String columnId) {
@@ -1019,7 +1085,7 @@ public class SymbolTableHashMap {
 
     }
 
-    private Record recordGenerator(String value, String type, Integer charLength){
+    private Record recordGenerator(String value, String type, Integer charLength, boolean surrogatePk){
         if (value != null){
             switch (type){
                 case "INT":
@@ -1043,10 +1109,14 @@ public class SymbolTableHashMap {
 
                 case "DATE":
                     try{
-                        DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
-                        df.setLenient(false);
-                        Date fecha2 = df.parse(value);
-                        return new DateRecord(fecha2);
+                        if (!surrogatePk){
+                            DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+                            df.setLenient(false);
+                            Date fecha2 = df.parse(value);
+                            return new DateRecord(fecha2);
+                        } else {
+                            return new DateRecord(new Date());
+                        }
 
                     } catch (java.text.ParseException e) {
                         temporalErrorMessage = "Error: Invalid date <strong>" + value + "</strong> at insert.";

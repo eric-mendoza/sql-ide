@@ -7,6 +7,7 @@ grammar Sql;
 NOT: 'NOT';
 OR : 'OR';
 AND : 'AND';
+REFERENCES: 'REFERENCES';
 
 fragment DIGIT:     '0'..'9' ;
 NUMBER:             DIGIT(DIGIT)* ;
@@ -81,7 +82,7 @@ show_cols_from
     ;
 
 insert_into
-    :   'INSERT' 'INTO' ID (ID (',' ID)*)* 'VALUES' (column_insert (',' column_insert)*) ';'
+    :   'INSERT' 'INTO' ID ('(' (ID (',' ID)*)* ')')? 'VALUES' (column_insert (',' column_insert)*) ';'
     ;
 
 column_insert
@@ -161,7 +162,7 @@ keys_constraint
     ;
 
 foreignKeyReferences
-    :   'REFERENCES' ID ('(' ID (',' ID)* ')')*
+    :   REFERENCES ID ('(' ID (',' ID)* ')')*
     ;
 
 check_exp
