@@ -119,6 +119,12 @@ public class KeyNode extends Node {
         k.writeToFile(file);
     }
 
+    public void remove(long child, RandomAccessFile file) {
+        int index = childs.indexOf(child);
+
+        childs.remove(child);
+    }
+
 
 
     public void dump(String ident, ArrayList<Type> keyTypes,

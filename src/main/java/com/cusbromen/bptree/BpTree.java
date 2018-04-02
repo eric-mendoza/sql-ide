@@ -962,7 +962,10 @@ public class BpTree {
     public void delete(Key key) throws IOException{
         LeafNode leafNode = search(key);
 
-        long individual = (blockSize - 45 - leafNode.availableSpace) / leafNode.getPairs().size();
+        if (leafNode.getPairs().isEmpty())
+            return;
+
+        long individual = leafNode.getPairs().get(0).size();;
 
         // Minimum amount of elements must be at least half
         // of the node capacity
@@ -1023,11 +1026,42 @@ public class BpTree {
             keyNode.replace(pos, key, file);
         }else {
             // Merge the nodes
-            if (isRight)
+            if (isRight) {
                 mergeNodes(leafNode, sibling);
-            else
+                keyNode.getChilds().remove(leafNode.loc());
+                balance(keyNode, minimumElements);
+            } else {
                 mergeNodes(sibling, leafNode);
+            }
         }
+    }
+
+
+    private void balance(KeyNode keyNode, long minChilds) throws IOException {
+        // We must repair the node
+        if (keyNode.getChilds().size() < minChilds && keyNode.getParent() != -1) {
+            file.seek(keyNode.getParent() + 1);
+            KeyNode parent = new KeyNode(keyTypes, file);
+            int index = parent.getChilds().indexOf(keyNode.loc());
+            boolean isLeft = index - 1 >= 0;
+            long siblingLoc = (isLeft) ? parent.getChilds().get(index - 1)
+                    : parent.getChilds().get(index + 1);
+            file.seek(siblingLoc + 1);
+            KeyNode sibling = new KeyNode(keyTypes, file);
+            if (sibling.getChilds().size() > minChilds) {
+                // Steal one child
+                ArrayList<Key> keys = sibling.getKeys();
+                ArrayList<Long> childs = sibling.getChilds();
+                long childToSteal = (isLeft) ? childs.get(childs.size() - 1)
+                        : childs.get(0);
+                Key keyToSteal = (isLeft) ? keys.get(keys.size() -1) : keys.get(0);
+                keyNode.add(keyToSteal, childToSteal, file);
+
+            }else {
+                // Merge keynodes
+            }
+        }
+
     }
 
     /**
