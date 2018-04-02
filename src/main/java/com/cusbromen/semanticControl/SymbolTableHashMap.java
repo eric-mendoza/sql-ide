@@ -1260,6 +1260,14 @@ public class SymbolTableHashMap {
     public ArrayList<Pair> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
                                       ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
         try {
+            // Make shure to not get NULL exception
+            if (orderByTuples == null){
+                orderByTuples = new ArrayList<>();
+            }
+
+            if (postFixWhereCondition == null){
+                postFixWhereCondition = new ArrayList<>();
+            }
 
             // Type of FROM
             // CASE 1: Simple search
@@ -1312,6 +1320,10 @@ public class SymbolTableHashMap {
 
                         bpTree.close();
 
+                        resultSearch = applyConditionToTuples(resultSearch, postFixWhereCondition);
+
+                        resultSearch = applyOrderToTuples(resultSearch, orderByTuples);
+
                         return resultSearch;
                     }
 
@@ -1331,6 +1343,23 @@ public class SymbolTableHashMap {
         }
 
         return null;
+    }
+
+    private ArrayList<Pair> applyOrderToTuples(ArrayList<Pair> resultSearch, ArrayList<String[]> orderByTuples) {
+        if (orderByTuples.size() == 0){
+            return resultSearch;
+        } else {
+            // TODO: ORDER THINGS
+            return resultSearch;
+        }
+    }
+
+    private ArrayList<Pair> applyConditionToTuples(ArrayList<Pair> resultSearch, ArrayList<String> postFixWhereCondition) {
+        if (postFixWhereCondition.size() == 0){
+            return resultSearch;
+        } else {
+            return resultSearch;
+        }
     }
 
     private ArrayList<Pair> simpleFastSearch(Key key, BpTree bpTree, String operand, int positionKey) throws IOException {
@@ -1403,5 +1432,28 @@ public class SymbolTableHashMap {
         }
         return null;
 
+    }
+
+    public String delete(String tableId, JSONArray newConditionPostFix) {
+        try {
+            // Get the tuples we want to delete
+            ArrayList<String> uniqueTable = new ArrayList<>();
+            uniqueTable.add(tableId);
+            ArrayList<Pair> tuplesToDelete = searchRaw(new ArrayList<>(), uniqueTable, newConditionPostFix, null);
+
+            BpTree bpTree = new BpTree(getTableTreePath(tableId));
+
+            bpTree.delete(tuplesToDelete);
+
+            bpTree.close();
+
+            return "deleted <strong>" + tuplesToDelete.size() + "</strong> from table <strong>" + tableId + "</strong>";
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            temporalErrorMessage = "deleted of rows. Couldn't write on tree.";
+            return temporalErrorMessage;
+        }
     }
 }

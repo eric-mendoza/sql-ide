@@ -467,9 +467,43 @@ public class Visitor extends SqlBaseVisitor<String> {
         return "void";
     }
 
-    /** 'DELETE' 'FROM' ID ('WHERE' condition)* ';' */
+    /** 'DELETE' 'FROM' ID ('WHERE' check_expr)* ';' */
     @Override
     public String visitDelete(SqlParser.DeleteContext ctx) {
+        // They must be using a DB
+        if (symbolTable.getDbInUse() == null){
+            semanticErrorsList.add("Error: You haven't selected a database yet. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        // Get table
+        String tableId = ctx.ID().getSymbol().getText();
+        JSONObject table = symbolTable.getTable(tableId);
+        if (table == null){
+            semanticErrorsList.add("Error: Table <strong>" + tableId + "</strong> doesn't exists in DB in use. Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        // Analize WHERE clause
+        newColumns = ((JSONObject) table.get("columns"));
+        newConditionPostFix = new JSONArray();
+        newColumnName = "";
+        if (ctx.check_exp() != null){
+            String conditionResult = visit(ctx.check_exp());
+            if (conditionResult.equals("error")){
+                return "error";
+            }
+        }
+
+
+        String res = symbolTable.delete(tableId, newConditionPostFix);
+        if (symbolTable.temporalErrorMessage == null){
+            successMessages.add("Successfully " + res);
+        } else {
+            semanticErrorsList.add("Unsuccessfully " + res + " Line: " + ctx.start.getLine());
+        }
+
+
         return super.visitDelete(ctx);
     }
 
