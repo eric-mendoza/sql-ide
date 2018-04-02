@@ -559,9 +559,10 @@ public class Visitor extends SqlBaseVisitor<String> {
         }
 
         // Get condition array
-        newConditionPostFix = new JSONArray();
+        newConditionPostFix = null;
         String conditionResult;
         if (ctx.check_exp() != null){
+            newConditionPostFix = new JSONArray();
             conditionResult = visit(ctx.check_exp());
             if (conditionResult.equals("error")){
                 return "error";
@@ -578,13 +579,13 @@ public class Visitor extends SqlBaseVisitor<String> {
 
         }
         Pair<ArrayList<String>, ArrayList<Queue<String>>> result =  symbolTable.fancySearch(newColumnsNames, newTablesIds, newConditionPostFix, newOrderBy);
-        addDataToGrid(result.getKey(), result.getValue());
 
         if (symbolTable.temporalErrorMessage != null){
             semanticErrorsList.add(symbolTable.temporalErrorMessage + " Line: " + ctx.start.getLine());
+            return "error";
         }
 
-
+        addDataToGrid(result.getKey(), result.getValue());
         return "void";
     }
 

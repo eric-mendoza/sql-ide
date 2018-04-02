@@ -896,6 +896,10 @@ public class SymbolTableHashMap {
 
             ArrayList<Pair> tuplesToChange = searchRaw(new ArrayList<>(), tables, postFixWhereCondition, null);
 
+            if (tuplesToChange == null){
+                return temporalErrorMessage;
+            }
+
             // Delete old tuples from tree
             bpTree.delete(tuplesToChange);
 
@@ -950,10 +954,11 @@ public class SymbolTableHashMap {
 
             return succesMessage;
 
-        } catch (Exception e) { e.printStackTrace(); }
-
-
-        return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            temporalErrorMessage = "ERROR while updating rows on tree.";
+            return temporalErrorMessage;
+        }
     }
 
     public String insert(String tableId, List<TerminalNode> columnsToInsert, ArrayList<ArrayList<String>> rowsToInsert) {
@@ -1256,9 +1261,10 @@ public class SymbolTableHashMap {
     }
 
 
-    public ArrayList<Pair> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
+    public ArrayList<Pair> searchRaw(ArrayList<String> selectColumns, ArrayList<String> fromTables,
                                       ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
         try {
+
             // Make shure to not get NULL exception
             if (orderByTuples == null){
                 orderByTuples = new ArrayList<>();
@@ -1273,6 +1279,10 @@ public class SymbolTableHashMap {
             if (fromTables.size() == 1){
                 // Get Columns and Types for quick quearies
                 String tableId = fromTables.get(0);
+
+                // Open tree
+                BpTree bpTree = new BpTree(getTableTreePath(tableId));
+
                 LinkedHashMap<String, String> columnsAndTypes = getTableColumnTypes(getTable(tableId)); // (id, type)
                 ArrayList<String> pkIds = new ArrayList<>(getPrimaryKey(tableId)); // Get primary key of unique table
 
@@ -1280,6 +1290,8 @@ public class SymbolTableHashMap {
                 //CASE 1.1: SIMPLE COMPLEX SEARCH
                 if (postFixWhereCondition.size() > 3){
                     System.out.println("Más tarde se realizará");
+                    temporalErrorMessage = "We are on experiment issues, you can't use comlex where CLASUES.";
+                    return null;
                 }
 
                 // CASE 1.2: SIMPLE SIMPLE SEARCH
@@ -1289,30 +1301,34 @@ public class SymbolTableHashMap {
                     // Verify if PK is involved in the search
                     String pkInvolved, value;
                     int positionKey;
-                    if (pkIds.contains(postFixWhereCondition.get(0))){
-                        pkInvolved = postFixWhereCondition.get(0);
-                        positionKey = 0;
-                        value = postFixWhereCondition.get(1);
+                    if (postFixWhereCondition.size() > 0){
+                        if (pkIds.contains(postFixWhereCondition.get(0))){
+                            pkInvolved = postFixWhereCondition.get(0);
+                            positionKey = 0;
+                            value = postFixWhereCondition.get(1);
 
-                    } else if (pkIds.contains(postFixWhereCondition.get(1))){
-                        pkInvolved = postFixWhereCondition.get(1);
-                        positionKey = 1;
-                        value = postFixWhereCondition.get(0);
+                        } else if (pkIds.contains(postFixWhereCondition.get(1))){
+                            pkInvolved = postFixWhereCondition.get(1);
+                            positionKey = 1;
+                            value = postFixWhereCondition.get(0);
+                        } else {
+                            pkInvolved = null;
+                            value = "";
+                            positionKey = 0;
+                        }
                     }
                     else {
+                        // .all search
                         pkInvolved = null;
                         value = "";
                         positionKey = 0;
                     }
 
-                    // CASE 1.2.1: FAST SEARCH
+                    // CASE 1.2.1: FAST CONDITIONED SEARCH
                     if (pkInvolved != null){
                         // Get the data type of the pk involved
                         String pkType = columnsAndTypes.get(pkInvolved);
                         key.add(recordGenerator(value, pkType, null, false));
-
-                        // Open tree
-                        BpTree bpTree = new BpTree(getTableTreePath(tableId));
 
                         // Search in tree with special search method
                         ArrayList<Pair> resultSearch = simpleFastSearch(key, bpTree, postFixWhereCondition.get(2), positionKey);
@@ -1320,15 +1336,14 @@ public class SymbolTableHashMap {
                         bpTree.close();
 
                         resultSearch = applyConditionToTuples(resultSearch, postFixWhereCondition);
-
                         resultSearch = applyOrderToTuples(resultSearch, orderByTuples);
 
                         return resultSearch;
                     }
 
-                    // CASE 1.2.2: All search
+                    // CASE 1.2.2: All ULTRA FAST search
                     else {
-
+                            return simpleFastSearch(null, bpTree, "null", 0);
                     }
                 }
             }
@@ -1336,13 +1351,16 @@ public class SymbolTableHashMap {
             // Cross product search
             else {
                 System.out.println("LOLOLOLOLOL");
+                temporalErrorMessage = "We are on maintenance, you can't use cross product of tables.";
+                return null;
             }
         } catch (IOException e) {
             e.printStackTrace();
+            temporalErrorMessage = "Error while searching on tree. See your administrator.";
+            return null;
         }
-
-        return null;
     }
+
 
     private ArrayList<Pair> applyOrderToTuples(ArrayList<Pair> resultSearch, ArrayList<String[]> orderByTuples) {
         if (orderByTuples.size() == 0){
@@ -1385,9 +1403,8 @@ public class SymbolTableHashMap {
                 else return bpTree.upperStrictRangeSearch(key);
 
             default:
-                result = new ArrayList<>();
-                result.add(bpTree.equalSearch(key));
-                return result;
+                // ULTRA FSAT SEACR
+                return bpTree.all();
         }
     }
 
@@ -1398,7 +1415,11 @@ public class SymbolTableHashMap {
     public javafx.util.Pair<ArrayList<String>, ArrayList<Queue<String>>> fancySearch(ArrayList<String> selectColumns, ArrayList<String> fromTables,
                                                                                      ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples) {
 
-        ArrayList<Pair> result = searchRaw(selectColumns, fromTables, postFixWhereCondition, orderByTuples);
+        ArrayList<Pair> rowsToShow = searchRaw(selectColumns, fromTables, postFixWhereCondition, orderByTuples);
+
+        if (rowsToShow == null){
+            return null;
+        }
 
         // Now we must select the selected columns
         if (fromTables.size() == 1){
@@ -1412,22 +1433,50 @@ public class SymbolTableHashMap {
                 columnIds.remove(pkId);
             }
 
-            // Create arraylist with all the columns in order of tuple.getcombined
+            // Create  pjIds  arraylist with all the columns in order of tuple.getcombined
+            ArrayList<String> headerTable = new ArrayList<>();  // ordered correctly
+            ArrayList<Integer> headerColumnsIndex = new ArrayList<>();
             pkIds.addAll(columnIds);
+            if (selectColumns.size() != 0){
+                // Create header
+                for (String columnId : pkIds) {
+                    if (selectColumns.contains(columnId)){
+                        headerTable.add(columnId);
+                        headerColumnsIndex.add(pkIds.indexOf(columnId));
+                    }
+                }
+            } else {
+                headerTable = pkIds;
+            }
 
             // Time to walk all the resulting rows
             ArrayList<Queue<String>> rows = new ArrayList<>();
             Queue<String> newRow;
-            for (Pair rowDivided : result) {
-                newRow = new ArrayDeque<>();
-                ArrayList<Record> records = rowDivided.getCombined().getRecords();
-                for (Record record : records) {
-                    newRow.add(record.getStringVal());
+
+            if (selectColumns.size() == 0){
+                // Show all
+                for (Pair rowDivided : rowsToShow) {
+                    newRow = new ArrayDeque<>();
+                    ArrayList<Record> records = rowDivided.getCombined().getRecords();
+                    for (Record record : records) {
+                        newRow.add(record.getStringVal());
+                    }
+                    rows.add(newRow);
                 }
-                rows.add(newRow);
+            } else {
+                // Select columns
+                for (Pair rowDivided : rowsToShow) {
+                    newRow = new ArrayDeque<>();
+                    ArrayList<Record> records = rowDivided.getCombined().getRecords();
+                    for (Integer index: headerColumnsIndex) {
+                        Record record = records.get(index);
+                        newRow.add(record.getStringVal());
+                    }
+                    rows.add(newRow);
+                }
             }
 
-            return new javafx.util.Pair<>(pkIds, rows);
+            return new javafx.util.Pair<>(headerTable, rows);
         }
         return null;
 
@@ -1439,6 +1488,10 @@ public class SymbolTableHashMap {
             ArrayList<String> uniqueTable = new ArrayList<>();
             uniqueTable.add(tableId);
             ArrayList<Pair> tuplesToDelete = searchRaw(new ArrayList<>(), uniqueTable, newConditionPostFix, null);
+
+            if (tuplesToDelete == null){
+                return temporalErrorMessage;
+            }
 
             BpTree bpTree = new BpTree(getTableTreePath(tableId));
 
