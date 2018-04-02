@@ -14,6 +14,11 @@ public class Key extends Tuple implements Comparable<Key>{
         super(types, file);
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        Key k = (Key) obj;
+        return this.compareTo(k) == 0;
+    }
 
     @Override
     public int compareTo(Key o) {

@@ -14,7 +14,7 @@ public class Pair implements Comparable<Pair>{
         tuple = new Tuple();
     }
 
-    Pair(Key k, Tuple t) {
+    public Pair(Key k, Tuple t) {
         key = k;
         tuple = t;
     }
@@ -80,6 +80,12 @@ public class Pair implements Comparable<Pair>{
             }
         }
         tuple.writeToFile(file);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        Pair p = (Pair) obj;
+        return this.compareTo(p) == 0;
     }
 
     @Override

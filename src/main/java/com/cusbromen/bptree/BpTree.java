@@ -5,6 +5,7 @@
  */
 package com.cusbromen.bptree;
 
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -23,6 +24,7 @@ public class BpTree {
 
     // Pointer to tree root
     private long root;
+    private long nextInsertPointer;
 
     // Array that contains available disk pages
     private ArrayList<Long> freePages;
@@ -69,6 +71,7 @@ public class BpTree {
                 recordTypes.add(Type.fromInt(file.readInt()));
             }
             root = file.readLong();
+            nextInsertPointer = file.getFilePointer();
             nextInsert = file.readLong();
             file.seek(root);
         }else {
@@ -152,7 +155,9 @@ public class BpTree {
 
         root = blockSize;
         file.writeLong(root);
+        nextInsertPointer = file.getFilePointer();
         file.writeLong(root + blockSize);
+        nextInsert = root + blockSize;
 
 
         file.seek(root);
@@ -170,6 +175,8 @@ public class BpTree {
      * @throws IOException if can't be closed
      */
     public void close() throws IOException{
+        file.seek(nextInsertPointer);
+        file.writeLong(nextInsert);
         file.close();
     }
 
@@ -664,7 +671,6 @@ public class BpTree {
 //                leftNodeChilds.add(childs.get(childs.size() - 2));
 //
 //                rightNodeChilds.add(child2.loc());
-                // Recorrer todos los childs involucrados updateando sus parents
                 keyNode.setKeys(leftNodeKeys);
                 keyNode.setChilds(keyTypes, recordTypes, leftNodeChilds, file);
                 keyNode.setAvailableSpace(blockSize - 1);
@@ -955,53 +961,119 @@ public class BpTree {
     }
 
 
+//    /**
+//     * Deletes tuple from the b+ tree
+//     * @param key key to remove
+//     */
+//    public void delete(Key key) throws IOException{
+//        LeafNode leafNode = search(key);
+//
+//        if (leafNode.getPairs().isEmpty())
+//            return;
+//
+//        long individual = leafNode.getPairs().get(0).size();;
+//
+//        // Minimum amount of elements must be at least half
+//        // of the node capacity
+//        long minimumElements = (blockSize - 1) /  (2 * individual);
+//
+//        // If an element was not removed
+//        int removedIndex = leafNode.removeEntry(key, file);
+//        if (removedIndex == -1) {
+//            return;
+//        }
+//
+//
+//
+//
+//        // If we reached here, we must balance.
+//        long parentLoc = leafNode.getParent() + 1;
+//        if (parentLoc != -1) {
+//            file.seek(parentLoc);
+//            // Load to RAM the parent node
+//            KeyNode keyNode = new KeyNode(keyTypes, file);
+//            ArrayList<Key> keys = keyNode.getKeys();
+//            ArrayList<Long> childs = keyNode.getChilds();
+//
+//
+//            if(removedIndex == 0) {
+//                int i = keys.indexOf(key);
+//                if (i != -1){
+//                    Pair newKey = leafNode.getPairs().get(0);
+//                    keyNode.replace(i, newKey.getKey(), file);
+//                }
+//            }
+//
+//            // Nothing to balance, we're done here
+//            if (leafNode.getPairs().size() >= minimumElements) {
+//                return;
+//            }
+//            // Check adjacent nodes for help
+//            if (leafNode.getPrevNode() > 0) {
+//                file.seek(leafNode.getPrevNode() + 1);
+//                LeafNode sibling = new LeafNode(keyTypes, recordTypes, file);
+//                if (sibling.getPairs().size() > minimumElements) {
+//                    ArrayList<Pair> pairs = sibling.getPairs();
+//                    Pair p = sibling.remove(pairs.size() - 1, file);
+//                    leafNode.add(p, file);
+//                    int keyIndex = keys.indexOf(p.getKey());
+//                    keyNode.replace(keyIndex, p.getKey(), file);
+//                }else {
+//                    // Merge
+//                    mergeNodes(leafNode, sibling);
+//
+//                }
+//            } else if (leafNode.getNextNode() > 0) {
+//
+//            }
+//
+//        }
+//
+//    }
+
     /**
-     * Deletes tuple from the b+ tree
-     * @param key key to remove
+     * Delete
+     * @param tupleToEliminate tuple to eliminate
      */
-    public void delete(Key key) throws IOException{
-        LeafNode leafNode = search(key);
+    public void delete(ArrayList<Pair> tupleToEliminate) throws IOException{
+        ArrayList<Pair> pairs = all();
+        ArrayList<Pair> merged = new ArrayList<>();
 
-        if (leafNode.getPairs().isEmpty())
-            return;
-
-        long individual = leafNode.getPairs().get(0).size();;
-
-        // Minimum amount of elements must be at least half
-        // of the node capacity
-        long minimumElements = (blockSize - 1) /  (2 * individual);
-
-        // If an element was not removed
-        if(!leafNode.removeEntry(key, file)) {
-            return;
-        }
-
-
-        // Nothing to balance, we're done here
-        if (leafNode.getPairs().size() >= minimumElements) {
-            return;
-        }
-
-        // If we reached here, we must balance.
-        long parentLoc = leafNode.getParent() + 1;
-        if (parentLoc != -1) {
-            file.seek(parentLoc);
-            // Load to RAM the parent node
-            KeyNode keyNode = new KeyNode(keyTypes, file);
-            ArrayList<Long> childs = keyNode.getChilds();
-            int pos = childs.indexOf(leafNode.loc());
-
-            // Check adjacent nodes for help
-            if (pos + 1 < childs.size()){
-                file.seek(childs.get(pos + 1) + 1);
-                balance(leafNode, keyNode, pos, minimumElements, true);
-                file.seek(keyNode.loc() + 1);
-            }else if (pos - 1 > 0) {
-                file.seek(childs.get(pos - 1) + 1);
-                balance(leafNode, keyNode, pos, minimumElements, false);
+        for (Pair p : pairs) {
+            if (!tupleToEliminate.contains(p)){
+                merged.add(p);
             }
-
         }
+
+        file.seek(0);
+        file.writeInt(blockSize);
+        file.writeInt(0);
+
+        file.writeInt(keyTypes.size());
+        for (Type t : keyTypes) {
+            file.writeInt(t.val());
+        }
+
+        file.writeInt(recordTypes.size());
+        for (Type t : recordTypes) {
+            file.writeInt(t.val());
+        }
+
+        root = blockSize;
+        file.writeLong(root);
+        file.writeLong(root + blockSize);
+        nextInsert = root + blockSize;
+        file.seek(root);
+
+        file.writeBoolean(true);
+
+
+        (new LeafNode(blockSize - 1)).writeToFile(file);
+
+        for (Pair p : merged) {
+            insert(p.getKey(), p.getTuple());
+        }
+
 
     }
 
@@ -1054,8 +1126,11 @@ public class BpTree {
                 ArrayList<Long> childs = sibling.getChilds();
                 long childToSteal = (isLeft) ? childs.get(childs.size() - 1)
                         : childs.get(0);
+                childs.remove(childToSteal);
                 Key keyToSteal = (isLeft) ? keys.get(keys.size() -1) : keys.get(0);
                 keyNode.add(keyToSteal, childToSteal, file);
+                keyNode.setChilds(keyTypes, recordTypes, keyNode.getChilds(), file);
+                sibling.setChilds(keyTypes, recordTypes, sibling.getChilds(), file);
 
             }else {
                 // Merge keynodes
