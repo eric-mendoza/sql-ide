@@ -869,7 +869,6 @@ public class SymbolTableHashMap {
     /**
      * 'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';'
      * @param idList
-     * @param conditionList
      * @return
      */
     public String update(List<TerminalNode> idList,
@@ -1202,7 +1201,7 @@ public class SymbolTableHashMap {
     }
 
 
-    public ArrayList<Tuple> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
+    public ArrayList<Pair> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
                                       ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
 
 
