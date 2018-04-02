@@ -95,11 +95,11 @@ data
 
 
 update
-    :   'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';'
+    :   'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)? ';'
     ;
 
 delete
-    :   'DELETE' 'FROM' ID ('WHERE' check_exp)* ';'
+    :   'DELETE' 'FROM' ID ('WHERE' check_exp)? ';'
     ;
 
 select
@@ -114,7 +114,7 @@ from
     ;
 
 order_by_statement
-    :   ID ('ASC' | 'DESC')
+    :   ID op = ('ASC' | 'DESC')
     ;
 
 condition

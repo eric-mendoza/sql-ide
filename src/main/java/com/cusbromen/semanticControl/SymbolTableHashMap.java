@@ -1,5 +1,6 @@
 package com.cusbromen.semanticControl;
 
+import com.cusbromen.antlr.SqlParser;
 import com.cusbromen.bptree.*;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
@@ -865,6 +866,46 @@ public class SymbolTableHashMap {
         return "metadata/" + dbInUseId + "/" + tableName;
     }
 
+    /**
+     * 'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';'
+     * @param idList
+     * @return
+     */
+    public String update(List<TerminalNode> idList,
+                         List<SqlParser.DataContext> dataList,
+                         ArrayList<String> postFixWhereCondition) {
+        // Finish gathering info
+        String tableName = idList.get(0).getText();                 // table to update
+
+        // updates come in 2-tuples. Let's fill two lists:
+        // 1. Column names for index i
+        // 2. Value to update for index i
+
+        List<String> columnNames = new ArrayList<>();               // names for columns to change
+        List<String> newValues = new ArrayList<>();                 // values for columns
+
+        // let's fill the columnNames first
+        for (int i = 1; i < idList.size(); i++) {
+            columnNames.add(idList.get(i).getText());
+        }
+
+        // now lets fill the dataList
+        for (SqlParser.DataContext data : dataList) {
+            newValues.add(data.getText());
+        }
+
+        System.out.println("table Name: " + tableName + "\ncolumn names: " + columnNames + "\nnew values: " + newValues);
+
+        // TODO: make update
+        ArrayList<String> tables = new ArrayList<>();                // list of tables for SELECT, just one table
+        tables.add(tableName);
+
+        // Call searchRaw to get SELECT * FROM table
+        ArrayList<Tuple> selectResult = searchRaw(new ArrayList<>(), tables, postFixWhereCondition, null);
+
+        return null;
+    }
+
     public String insert(String tableId, List<TerminalNode> columnsToInsert, ArrayList<ArrayList<String>> rowsToInsert) {
         try {
             if (dbInUseId != null){
@@ -1160,7 +1201,11 @@ public class SymbolTableHashMap {
     }
 
 
-    public ArrayList<Tuple> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables, ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
+    public ArrayList<Pair> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
+                                      ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
+
+
+
         return null;
     }
 

@@ -22,11 +22,12 @@ import java.util.*;
 @SuppressWarnings("unchecked") // JSON's fault
 public class Visitor extends SqlBaseVisitor<String> {
     private List<String> semanticErrorsList, successMessages, verboseParser; // list for semantic errors found
+    private ArrayList<String> newTablesIds;
     private JSONParser jsonParser;
     private JSONArray newConditionPostFix;
     private JSONObject newTable, newColumns, newColumn, newConstraints;  // This is going to be used to construct a table step by step
     private String dbsJsonPath, dbInUse, newTableName, newColumnName, newTypeColumn;
-    private ArrayList<String[]> newReferencedTables; // it's going to be used to save referenced tables temporary
+    private ArrayList<String[]> newReferencedTables, newOrderBy; // it's going to be used to save referenced tables temporary
     private SymbolTableHashMap symbolTable;
     private String lastDbUsedPath = "metadata/lastDbUsed";
     private boolean syntaxError, addingConstraint, primaryKeyCreated, columnNullable;
@@ -404,10 +405,25 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitColumn_insert(ctx);
     }
 
-    /** 'UPDATE' ID 'SET' ID '=' (',' ID)* ('WHERE' condition)* ';' */
+    /** 'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)? ';' */
     @Override
     public String visitUpdate(SqlParser.UpdateContext ctx) {
-        return super.visitUpdate(ctx);
+        // get info from AST
+        List<TerminalNode> idList = ctx.ID();                                   // list of IDs
+        List<SqlParser.DataContext> dataList = ctx.data();                      // list of data values
+
+        if (ctx.check_exp() != null){
+            newColumns = ((JSONObject) symbolTable.getTable(idList.get(0).getText()).get("columns"));
+            newConditionPostFix = new JSONArray();
+            String conditionResult = visit(ctx.check_exp());
+            if (conditionResult.equals("error")){
+                return "error";
+            }
+        }
+
+        String res = symbolTable.update(idList, dataList, newConditionPostFix);
+
+        return "void";
     }
 
     /** 'DELETE' 'FROM' ID ('WHERE' condition)* ';' */
@@ -436,7 +452,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         List<TerminalNode> tablesIdNodes = ctx.from().ID();
 
         // Get tables columns
-        ArrayList<String> tablesIds = new ArrayList<>();
+        newTablesIds = new ArrayList<>();
         newColumns = new JSONObject();  // Restart variable to make shure its empty
         for (TerminalNode tableNode : tablesIdNodes) {
             String tableId = tableNode.getSymbol().getText();
@@ -448,21 +464,62 @@ public class Visitor extends SqlBaseVisitor<String> {
                 return "error";
             }
 
-            tablesIds.add(tableId);
+            newColumns.putAll((JSONObject) table.get("columns"));  // get all the columns together
+            newTablesIds.add(tableId);
         }
 
+        // Get SELECT columnsid
+        ArrayList<String> columnsIds = new ArrayList<>();
+        for (TerminalNode columnNode : columnsIdNodes) {
+            String columnId = columnNode.getSymbol().getText();
 
+            // Verify if column exists on columns of tables
+            if (newColumns.get(columnId) == null){
+                semanticErrorsList.add("Error: Couldn't complete SELECT operation, column <strong>" + columnId +"</strong> doesn't exists on cross product of <strong>" + newTablesIds.toString() +"</strong> . Line: " + ctx.start.getLine());
+                return "error";
+            }
 
+            columnsIds.add(columnId);
+
+        }
+
+        // Get condition array
         newConditionPostFix = new JSONArray();
         String conditionResult = visit(ctx.check_exp());
+        if (conditionResult.equals("error")){
+            return "error";
+        }
+
+        // Get Order by
+        newOrderBy = new ArrayList<>();  // get order by order (id, order)
+        List<SqlParser.Order_by_statementContext> orderByList = ctx.order_by_statement();
+        for (SqlParser.Order_by_statementContext ctx2 : orderByList) {
+            conditionResult = visit(ctx2);
+            if (conditionResult.equals("error")){
+                return "error";
+            }
+
+        }
+        symbolTable.searchRaw(columnsIds, newTablesIds, newConditionPostFix, newOrderBy);
 
         return "void";
     }
 
-    /** ID ('ASC' | 'DESC') */
+    /** ID  op = ('ASC' | 'DESC') */
     @Override
     public String visitOrder_by_statement(SqlParser.Order_by_statementContext ctx) {
-        return super.visitOrder_by_statement(ctx);
+        // Get ID
+        String id = ctx.ID().getSymbol().getText();
+
+        // Verify if ID is on selected rows to show
+        if (!newTablesIds.contains(id)){
+            semanticErrorsList.add("Error: Couldn't complete SELECT operation, the column <strong>" + id +"</strong> isn't in SELECT clause . Line: " + ctx.start.getLine());
+            return "error";
+        }
+
+        newOrderBy.add(new String[]{id, ctx.op.getText()});
+
+        return "void";
     }
 
     /** ID rel_exp ID */
