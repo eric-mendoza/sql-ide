@@ -404,10 +404,16 @@ public class Visitor extends SqlBaseVisitor<String> {
         return super.visitColumn_insert(ctx);
     }
 
-    /** 'UPDATE' ID 'SET' ID '=' (',' ID)* ('WHERE' condition)* ';' */
+    /** 'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)* ('WHERE' check_exp)* ';' */
     @Override
     public String visitUpdate(SqlParser.UpdateContext ctx) {
-        return super.visitUpdate(ctx);
+        // get info from AST
+        List<TerminalNode> idList = ctx.ID();                                   // list of IDs
+        List<SqlParser.Check_expContext> conditionList = ctx.check_exp();       // list of conditions after WHERE
+
+        String res = symbolTable.update(idList, conditionList);
+
+        return "void";
     }
 
     /** 'DELETE' 'FROM' ID ('WHERE' condition)* ';' */

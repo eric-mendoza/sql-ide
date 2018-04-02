@@ -1,5 +1,6 @@
 package com.cusbromen.semanticControl;
 
+import com.cusbromen.antlr.SqlParser;
 import com.cusbromen.bptree.*;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.json.simple.JSONArray;
@@ -862,6 +863,39 @@ public class SymbolTableHashMap {
 
     String getTableTreePath(String tableName){
         return "metadata/" + dbInUseId + "/" + tableName;
+    }
+
+    /**
+     * 'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)* ('WHERE' check_exp)* ';'
+     * @param idList
+     * @param conditionList
+     * @return
+     */
+    public String update(List<TerminalNode> idList, List<SqlParser.Check_expContext> conditionList) {
+        // Finish gathering info
+        String tableName = idList.get(0).getText();                 // table to update
+
+        // updates come in 2-tuples. Let's fill two lists:
+        // 1. Column names for index i
+        // 2. Value to update for index i
+
+        List<String> columnNames = new LinkedList<>();              // names for columns to change
+        List<String> newValues = new LinkedList<>();                // values for columns
+
+        // traverse idList to get column names and values
+        for (int i = 1; i < idList.size(); i++) {
+            // odd indexes for IDs are column values
+            if (i % 2 != 0) {
+                columnNames.add(idList.get(i).getText());
+            } else {
+                // even indexes for IDs are values
+                newValues.add(idList.get(i).getText());
+            }
+        }
+
+        System.out.println("table Name: " + tableName + "\ncolumn names: " + columnNames + "\nnew values: " + newValues);
+
+        return null;
     }
 
     public String insert(String tableId, List<TerminalNode> columnsToInsert, ArrayList<ArrayList<String>> rowsToInsert) {
