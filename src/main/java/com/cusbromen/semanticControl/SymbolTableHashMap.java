@@ -882,7 +882,7 @@ public class SymbolTableHashMap {
         // 2. Value to update for index i
 
         List<String> columnNames = new ArrayList<>();               // names for columns to change
-        List<String> newValues = new ArrayList<>();                 // values for columns
+        Queue<String> newValues = new LinkedList<>();                 // values for columns
 
         // let's fill the columnNames first
         for (int i = 1; i < idList.size(); i++) {
@@ -896,12 +896,76 @@ public class SymbolTableHashMap {
 
         System.out.println("table Name: " + tableName + "\ncolumn names: " + columnNames + "\nnew values: " + newValues);
 
-        // TODO: make update
+        // Call searchRaw to get SELECT * FROM table
         ArrayList<String> tables = new ArrayList<>();                // list of tables for SELECT, just one table
         tables.add(tableName);
 
-        // Call searchRaw to get SELECT * FROM table
-        ArrayList<Tuple> selectResult = searchRaw(new ArrayList<>(), tables, postFixWhereCondition, null);
+        ArrayList<Pair> tuplesToChange = searchRaw(new ArrayList<>(), tables, postFixWhereCondition, null);
+
+        // Make update to B+tree
+        try {
+            // To update the Pairs, first we need to know the columns and type for the table
+            JSONObject table = getTable(tableName);
+            LinkedHashMap<String, String> columnsAndTypes = getTableColumnTypes(table);         // get columns and types
+
+            Set<String> ids = columnsAndTypes.keySet();                                         // ids: column names
+
+            ArrayList<String> primaryKeysColumnNames = getPrimaryKey(tableName);
+
+            for(String idKey : primaryKeysColumnNames){
+                ids.remove(idKey);
+            }
+
+            List<String> types = new LinkedList<>();                                            // types: types for ids
+
+            // idsNames will have all the names for the columns
+            List<String> idsNames = new LinkedList<>();
+            idsNames.addAll(ids);
+
+            // traverse types
+            for (String key : ids) {
+                types.add(columnsAndTypes.get(key));
+            }
+
+            // add tuples
+            Tuple tuple = new Tuple();
+
+            for (int i = 0; i < ids.size(); i++) {
+                String type = types.get(i);
+                String currentColName = idsNames.get(i);
+
+                if (type.equalsIgnoreCase("INT")) {
+                    if (columnNames.contains(currentColName)) {
+                        tuple.add(new IntRecord(Integer.parseInt(newValues.poll())));
+                    } else { tuple.add(new IntRecord()); }
+
+                } else if (type.equalsIgnoreCase("CHAR")) {
+                    if (columnNames.contains(currentColName)) {
+                        tuple.add(new CharRecord(newValues.poll().toCharArray()));
+                    } else { tuple.add(new CharRecord()); }
+
+                } else if (type.equalsIgnoreCase("FLOAT")) {
+                    if (columnNames.contains(currentColName)) {
+                        tuple.add(new FloatRecord(Double.parseDouble(newValues.poll())));
+                    } else { tuple.add(new FloatRecord()); }
+
+                } else if (type.equalsIgnoreCase("DATE")) {
+                    if (columnNames.contains(currentColName)) {
+                        // TODO convert the string to date
+                        tuple.add(new DateRecord());
+                    } else { tuple.add(new DateRecord()); }
+                }
+            }
+
+            // Make the update
+            BpTree bpTree = new BpTree(getTableTreePath(tableName));
+
+            for (Pair pair : tuplesToChange) {
+                bpTree.updateTuple(pair.getKey(), tuple);
+            }
+
+        } catch (Exception e) { e.printStackTrace(); }
+
 
         return null;
     }
