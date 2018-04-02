@@ -110,6 +110,29 @@ public class LeafNode extends Node{
         }
     }
 
+    /**
+     * Adds a tuple to the leaf node
+     * @param p pair to add
+     * @param file file to write to
+     * @throws IOException if something goes wrong
+     */
+    void add(Pair p, RandomAccessFile file) throws IOException{
+        Utility.sortedInsert(pairs, p);
+        availableSpace -= p.size();
+        file.seek(head);
+        file.writeLong(availableSpace);
+        file.seek(file.getFilePointer() + 32);
+        file.writeInt(pairs.size());
+        for (Pair temp :
+                pairs) {
+            temp.writeToFile(file);
+        }
+    }
+
+
+
+
+
 
     /**
      * Update a single tuple
@@ -323,10 +346,45 @@ public class LeafNode extends Node{
 
     }
 
+    /**
+     * Removes an entry from the node
+     * @param key key to remove
+     */
+    boolean removeEntry(Key key, RandomAccessFile file) throws IOException{
+        for (int i = 0; i < pairs.size(); i++) {
+            Pair p = pairs.get(i);
+            if (p.getKey().compareTo(key) == 0) {
+                file.seek(head + 40);
+                pairs.remove(i);
+                file.writeInt(pairs.size());
+                file.seek(file.getFilePointer() + i * p.size());
+                for (int j = i; j < pairs.size(); j++) {
+                    pairs.get(j).writeToFile(file);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
 
 
-
-
+    /**
+     * Remove by index
+     * @param i pair to remove
+     * @param file file to write changes
+     * @return removed pair
+     * @throws IOException if something goes wrong
+     */
+    Pair remove(int i, RandomAccessFile file) throws IOException{
+        Pair p = pairs.remove(i);
+        file.seek(head + 40);
+        file.writeInt(pairs.size());
+        file.seek(file.getFilePointer() + i * p.size());
+        for (int j = i; j < pairs.size(); j++) {
+            pairs.get(j).writeToFile(file);
+        }
+        return p;
+    }
 
 
     public void dump(String ident) {
