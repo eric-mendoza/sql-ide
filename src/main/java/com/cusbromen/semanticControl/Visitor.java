@@ -48,6 +48,8 @@ public class Visitor extends SqlBaseVisitor<String> {
         syntaxError = false;
         addingConstraint = false;
 
+        showDataGrid = null;
+
         if (!getDbInUse().equals("none")) {
             showNotificationDbInUse(); // TODO lo quito para mientras huehuehue
         }
@@ -68,6 +70,7 @@ public class Visitor extends SqlBaseVisitor<String> {
             return "error";
         }
         successMessages.add("Database <strong>" + id + "</strong> successfully created.");
+
         return "void";
     }
 
@@ -1394,7 +1397,7 @@ public class Visitor extends SqlBaseVisitor<String> {
         ListDataProvider<Queue<String>> dataProvider = DataProvider.ofCollection(rowList);
         showDataGrid.setDataProvider(dataProvider);
 
-        consolePanelLayout.addComponent(showDataGrid);
+        //consolePanelLayout.addComponent(showDataGrid);
 
         // TODO: ejemplo de como funciona mostrar los datos en la tabla borrar los comentarios al final de todo xD
 //        List<String> colNames = new ArrayList<>();
@@ -1432,5 +1435,13 @@ public class Visitor extends SqlBaseVisitor<String> {
 //        showDataGrid.setDataProvider(dataProvider);
 //
 //        consolePanelLayout.addComponent(showDataGrid);
+    }
+
+    public Grid getDataGrid() {
+        return this.showDataGrid;
+    }
+
+    public void resetDataGrid() {
+        this.showDataGrid = null;
     }
 }

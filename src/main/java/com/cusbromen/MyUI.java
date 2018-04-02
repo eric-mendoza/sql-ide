@@ -242,6 +242,12 @@ public class MyUI extends UI {
                 updateDbsTree();
                 visitor.refreshInfoLists();
 
+                // show tables if there are any
+                if (visitor.getDataGrid() != null) {
+                    consolePanelLayout.addComponent(visitor.getDataGrid());
+                    visitor.resetDataGrid();
+                }
+
                 dbsTree.select("DB: " + visitor.getDbInUse());
 
                 Notification notification = new Notification("Compilation done!", "Execution terminated!");
