@@ -868,101 +868,87 @@ public class SymbolTableHashMap {
 
     /**
      * 'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';'
-     * @param idList
-     * @return
      */
-    public String update(List<TerminalNode> idList,
+    public String update(List<String> columnNames,
                          List<SqlParser.DataContext> dataList,
-                         ArrayList<String> postFixWhereCondition) {
-        // Finish gathering info
-        String tableName = idList.get(0).getText();                 // table to update
-
-        // updates come in 2-tuples. Let's fill two lists:
-        // 1. Column names for index i
-        // 2. Value to update for index i
-
-        List<String> columnNames = new ArrayList<>();               // names for columns to change
-        List<String> newValues = new ArrayList<>();                 // values for columns
-
-        // let's fill the columnNames first
-        for (int i = 1; i < idList.size(); i++) {
-            columnNames.add(idList.get(i).getText());
-        }
-
-        // now lets fill the dataList
-        for (SqlParser.DataContext data : dataList) {
-            newValues.add(data.getText());
-        }
-
-        System.out.println("table Name: " + tableName + "\ncolumn names: " + columnNames + "\nnew values: " + newValues);
-
-        // Call searchRaw to get SELECT * FROM table
-        ArrayList<String> tables = new ArrayList<>();                // list of tables for SELECT, just one table
-        tables.add(tableName);
-
-        ArrayList<Pair> tuplesToChange = searchRaw(new ArrayList<>(), tables, postFixWhereCondition, null);
-
+                         ArrayList<String> postFixWhereCondition, String tableName) {
         // Make update to B+tree
         try {
+            // Open tree
+            BpTree bpTree = new BpTree(getTableTreePath(tableName));
+
+            // updates come in 2-tuples. Let's fill two lists:
+            // 1. Column names for index i
+            // 2. Value to update for index i
+            temporalErrorMessage = null;
+            ArrayList<String> newValues = new ArrayList<>();                 // values for columns
+
+            // now lets fill the dataList
+            for (SqlParser.DataContext data : dataList) {
+                newValues.add(data.getText());
+            }
+
+            System.out.println("table Name: " + tableName + "\ncolumn names: " + columnNames + "\nnew values: " + newValues);
+
+            // Call searchRaw to get SELECT * FROM table
+            ArrayList<String> tables = new ArrayList<>();                // list of tables for SELECT, just one table
+            tables.add(tableName);
+
+            ArrayList<Pair> tuplesToChange = searchRaw(new ArrayList<>(), tables, postFixWhereCondition, null);
+
+            // Delete old tuples from tree
+            bpTree.delete(tuplesToChange);
+
             // To update the Pairs, first we need to know the columns and type for the table
             JSONObject table = getTable(tableName);
             LinkedHashMap<String, String> columnsAndTypes = getTableColumnTypes(table);         // get columns and types
 
-            Set<String> ids = columnsAndTypes.keySet();                                         // ids: column names
+            ArrayList<String> columnsIds = new ArrayList<>(columnsAndTypes.keySet());                                         // ids: column names
 
-            ArrayList<String> primaryKeysColumnNames = getPrimaryKey(tableName);
+            ArrayList<String> columnNamesInTupleOrder = new ArrayList<>(getPrimaryKey(tableName));
+            int numberOfPrimaryKeys = columnNamesInTupleOrder.size();
 
-            for(String idKey : primaryKeysColumnNames){
-                ids.remove(idKey);
+
+            // Remove id from general column names
+            for(String idKey : columnNamesInTupleOrder){
+                columnsIds.remove(idKey);
             }
 
-            List<String> types = new LinkedList<>();                                            // types: types for ids
+            // columnNamesInTupleOrder is going to have all the columns in tuple order
+            columnNamesInTupleOrder.addAll(columnsIds);
 
-            // idsNames will have all the names for the columns
-            List<String> idsNames = new LinkedList<>();
-            idsNames.addAll(ids);
 
-            // traverse types
-            for (String key : ids) {
-                types.add(columnsAndTypes.get(key));
-            }
+            // Modify received tuples from searchRaw
+            int numberOfRowsChanged = tuplesToChange.size(), indexOfColumnInTuple;
+            String newValue, columnType, columnId;
+            for (Pair rawPair : tuplesToChange) {
+                // Get tuple and modify
+                Tuple modifiedTuple = rawPair.getCombined();  // TODO this doesn't verify the constraints of db
 
-            // add tuples
-            Tuple tuple = new Tuple();
+                // Modify the values of the columns specified on visitor
+                for (int i = 0; i < columnNames.size(); i++) {
+                    // Get column to be modified, type and value
+                    columnId  = columnNames.get(i);
+                    indexOfColumnInTuple = columnNamesInTupleOrder.indexOf(columnId);
+                    columnType = columnsAndTypes.get(columnId);
+                    newValue = newValues.get(i);
 
-            for (int i = 0; i < ids.size(); i++) {
-                String type = types.get(i);
-                String currentColName = idsNames.get(i);
-
-                if (type.equalsIgnoreCase("INT")) {
-                    if (columnNames.contains(currentColName)) {
-                        //tuple.add(new IntRecord(Integer.parseInt(newValues.poll())));
-                    } else { tuple.add(new IntRecord()); }
-
-                } else if (type.equalsIgnoreCase("CHAR")) {
-                    if (columnNames.contains(currentColName)) {
-                        //tuple.add(new CharRecord(newValues.poll().toCharArray()));
-                    } else { tuple.add(new CharRecord()); }
-
-                } else if (type.equalsIgnoreCase("FLOAT")) {
-                    if (columnNames.contains(currentColName)) {
-                        //tuple.add(new FloatRecord(Double.parseDouble(newValues.poll())));
-                    } else { tuple.add(new FloatRecord()); }
-
-                } else if (type.equalsIgnoreCase("DATE")) {
-                    if (columnNames.contains(currentColName)) {
-                        // TODO convert the string to date
-                        tuple.add(new DateRecord());
-                    } else { tuple.add(new DateRecord()); }
+                    modifiedTuple.setRecord(indexOfColumnInTuple, recordGenerator(newValue, columnType, null, false));
                 }
+
+                // Modify row in tree
+                bpTree.insert(modifiedTuple, numberOfPrimaryKeys);
+
             }
+
 
             // Make the update
-            BpTree bpTree = new BpTree(getTableTreePath(tableName));
+            String succesMessage = " modified <strong>" + numberOfRowsChanged + "</strong> rows.";
 
-            for (Pair pair : tuplesToChange) {
-                bpTree.updateTuple(pair.getKey(), tuple);
-            }
+            // Close tree
+            bpTree.close();
+
+            return succesMessage;
 
         } catch (Exception e) { e.printStackTrace(); }
 
@@ -1273,6 +1259,14 @@ public class SymbolTableHashMap {
     public ArrayList<Pair> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
                                       ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
         try {
+            // Make shure to not get NULL exception
+            if (orderByTuples == null){
+                orderByTuples = new ArrayList<>();
+            }
+
+            if (postFixWhereCondition == null){
+                postFixWhereCondition = new ArrayList<>();
+            }
 
             // Type of FROM
             // CASE 1: Simple search
@@ -1280,7 +1274,7 @@ public class SymbolTableHashMap {
                 // Get Columns and Types for quick quearies
                 String tableId = fromTables.get(0);
                 LinkedHashMap<String, String> columnsAndTypes = getTableColumnTypes(getTable(tableId)); // (id, type)
-                ArrayList<String> pkIds = getPrimaryKey(tableId); // Get primary key of unique table
+                ArrayList<String> pkIds = new ArrayList<>(getPrimaryKey(tableId)); // Get primary key of unique table
 
                 // Verify type of condition
                 //CASE 1.1: SIMPLE COMPLEX SEARCH
@@ -1321,9 +1315,13 @@ public class SymbolTableHashMap {
                         BpTree bpTree = new BpTree(getTableTreePath(tableId));
 
                         // Search in tree with special search method
-                        ArrayList<Pair> resultSearch = simpleFastSearch(key, bpTree, postFixWhereCondition.get(0), positionKey);
+                        ArrayList<Pair> resultSearch = simpleFastSearch(key, bpTree, postFixWhereCondition.get(2), positionKey);
 
                         bpTree.close();
+
+                        resultSearch = applyConditionToTuples(resultSearch, postFixWhereCondition);
+
+                        resultSearch = applyOrderToTuples(resultSearch, orderByTuples);
 
                         return resultSearch;
                     }
@@ -1344,6 +1342,23 @@ public class SymbolTableHashMap {
         }
 
         return null;
+    }
+
+    private ArrayList<Pair> applyOrderToTuples(ArrayList<Pair> resultSearch, ArrayList<String[]> orderByTuples) {
+        if (orderByTuples.size() == 0){
+            return resultSearch;
+        } else {
+            // TODO: ORDER THINGS
+            return resultSearch;
+        }
+    }
+
+    private ArrayList<Pair> applyConditionToTuples(ArrayList<Pair> resultSearch, ArrayList<String> postFixWhereCondition) {
+        if (postFixWhereCondition.size() == 0){
+            return resultSearch;
+        } else {
+            return resultSearch;
+        }
     }
 
     private ArrayList<Pair> simpleFastSearch(Key key, BpTree bpTree, String operand, int positionKey) throws IOException {
@@ -1391,7 +1406,7 @@ public class SymbolTableHashMap {
             String tableId = fromTables.get(0);
             JSONObject table = getTable(tableId);
             LinkedHashMap<String, String> columnsIdsAndTypes = getTableColumnTypes(table);
-            ArrayList<String> pkIds = getPrimaryKey(tableId);
+            ArrayList<String> pkIds = new ArrayList<>(getPrimaryKey(tableId));
             Set<String> columnIds = columnsIdsAndTypes.keySet();
             for (String pkId : pkIds) {
                 columnIds.remove(pkId);
@@ -1404,7 +1419,7 @@ public class SymbolTableHashMap {
             ArrayList<Queue<String>> rows = new ArrayList<>();
             Queue<String> newRow;
             for (Pair rowDivided : result) {
-                newRow = new PriorityQueue<>();
+                newRow = new ArrayDeque<>();
                 ArrayList<Record> records = rowDivided.getCombined().getRecords();
                 for (Record record : records) {
                     newRow.add(record.getStringVal());
@@ -1416,5 +1431,28 @@ public class SymbolTableHashMap {
         }
         return null;
 
+    }
+
+    public String delete(String tableId, JSONArray newConditionPostFix) {
+        try {
+            // Get the tuples we want to delete
+            ArrayList<String> uniqueTable = new ArrayList<>();
+            uniqueTable.add(tableId);
+            ArrayList<Pair> tuplesToDelete = searchRaw(new ArrayList<>(), uniqueTable, newConditionPostFix, null);
+
+            BpTree bpTree = new BpTree(getTableTreePath(tableId));
+
+            bpTree.delete(tuplesToDelete);
+
+            bpTree.close();
+
+            return "deleted <strong>" + tuplesToDelete.size() + "</strong> from table <strong>" + tableId + "</strong>";
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            temporalErrorMessage = "deleted of rows. Couldn't write on tree.";
+            return temporalErrorMessage;
+        }
     }
 }
