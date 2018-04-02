@@ -34,6 +34,7 @@ public class Visitor extends SqlBaseVisitor<String> {
     private boolean syntaxError, addingConstraint, primaryKeyCreated, columnNullable;
     private Layout layout, consolePanelLayout;
     private Grid<Queue<String>> showDataGrid;
+    private int dataGridSize;
     private ArrayList<String> newColumnsNames;
 
     public Visitor() {
@@ -1474,6 +1475,8 @@ public class Visitor extends SqlBaseVisitor<String> {
         ListDataProvider<Queue<String>> dataProvider = DataProvider.ofCollection(rowList);
         showDataGrid.setDataProvider(dataProvider);
 
+        dataGridSize = rowList.size();
+
         //consolePanelLayout.addComponent(showDataGrid);
 
         // TODO: ejemplo de como funciona mostrar los datos en la tabla borrar los comentarios al final de todo xD
@@ -1521,4 +1524,6 @@ public class Visitor extends SqlBaseVisitor<String> {
     public void resetDataGrid() {
         this.showDataGrid = null;
     }
+
+    public int getDataGridSize() { return this.dataGridSize; }
 }

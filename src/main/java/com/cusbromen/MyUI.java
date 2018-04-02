@@ -244,6 +244,10 @@ public class MyUI extends UI {
 
                 // show tables if there are any
                 if (visitor.getDataGrid() != null) {
+                    int rows = visitor.getDataGridSize();
+                    Label errLbl = new Label("<font color=\"DodgerBlue\">Query succesfull returned " + String.valueOf(rows) + " rows.</font>", ContentMode.HTML);
+                    errLbl.setWidth(100.0f, Sizeable.Unit.PERCENTAGE);
+                    consolePanelLayout.addComponent(errLbl);
                     consolePanelLayout.addComponent(visitor.getDataGrid());
                     visitor.resetDataGrid();
                 }
