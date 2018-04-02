@@ -874,7 +874,6 @@ public class SymbolTableHashMap {
      */
     public String update(List<TerminalNode> idList,
                          List<SqlParser.DataContext> dataList,
-                         List<SqlParser.Check_expContext> conditionList,
                          ArrayList<String> postFixWhereCondition) {
         // Finish gathering info
         String tableName = idList.get(0).getText();                 // table to update
@@ -1203,7 +1202,11 @@ public class SymbolTableHashMap {
     }
 
 
-    public ArrayList<Tuple> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables, ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
+    public ArrayList<Tuple> searchRaw(ArrayList<String> SelectColumns, ArrayList<String> fromTables,
+                                      ArrayList<String> postFixWhereCondition, ArrayList<String[]> orderByTuples){
+
+
+
         return null;
     }
 
