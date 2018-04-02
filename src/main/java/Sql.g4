@@ -95,7 +95,7 @@ data
 
 
 update
-    :   'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)* ('WHERE' check_exp)* ';'
+    :   'UPDATE' ID 'SET' ID '=' data (',' ID '=' data)* ('WHERE' check_exp)* ';'
     ;
 
 delete
@@ -104,9 +104,13 @@ delete
 
 select
     :   'SELECT' ('*' | ID (',' ID)*)
-        'FROM' ID (',' ID)*
-        'WHERE' (check_exp)
+        from
+        ('WHERE' (check_exp))?
         ('ORDER' 'BY' order_by_statement (',' order_by_statement)*)* ';'
+    ;
+
+from
+    :   'FROM' ID (',' ID)*
     ;
 
 order_by_statement

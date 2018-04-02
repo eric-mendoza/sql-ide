@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class BpTree {
 
@@ -21,6 +23,9 @@ public class BpTree {
 
     // Pointer to tree root
     private long root;
+
+    // Array that contains available disk pages
+    private ArrayList<Long> freePages;
 
 
     // Pointer to next insertion
@@ -45,10 +50,17 @@ public class BpTree {
             file = new RandomAccessFile(fileName, "rw");
             keyTypes = new ArrayList<>();
             recordTypes = new ArrayList<>();
+            freePages = new ArrayList<>();
             // Retrieve the header
             blockSize = file.readInt();
 
+
             int size = file.readInt();
+            for (int i = 0; i < size; i++) {
+                freePages.add(file.readLong());
+            }
+
+            size = file.readInt();
             for (int i = 0; i < size; i++) {
                 keyTypes.add(Type.fromInt(file.readInt()));
             }
@@ -115,6 +127,14 @@ public class BpTree {
                             ArrayList<Type> recordTypes, int blockSize) throws IOException {
         // Write the header of the tree
         file.writeInt(blockSize);
+
+        freePages = new ArrayList<>();
+        // Write the freePages that can be used
+        file.writeInt(freePages.size());
+        for (long freePage:
+             freePages) {
+            file.writeLong(freePage);
+        }
 
         // Write the key types
         this.keyTypes = keyTypes;
@@ -630,17 +650,17 @@ public class BpTree {
                 ArrayList<Key> rightNodeKeys = new ArrayList<>();
                 ArrayList<Long> leftNodeChilds = new ArrayList<>();
                 ArrayList<Long> rightNodeChilds = new ArrayList<>();
+                leftNodeChilds.add(childs.get(0));
                 for (int i = 0; i < keys.size(); i++) {
                     if (i < newSize) {
                         leftNodeKeys.add(keys.get(i));
-                        leftNodeChilds.add(childs.get(i));
                         leftNodeChilds.add(childs.get(i + 1));
                     }else if (i > newSize){
                         rightNodeKeys.add(keys.get(i));
                         rightNodeChilds.add(childs.get(i));
-                        rightNodeChilds.add(childs.get(i + 1));
                     }
                 }
+                rightNodeChilds.add(childs.get(childs.size() - 1));
 //                leftNodeChilds.add(childs.get(childs.size() - 2));
 //
 //                rightNodeChilds.add(child2.loc());
@@ -655,7 +675,17 @@ public class BpTree {
                 KeyNode newKeyNode = new KeyNode(blockSize - 1);
                 newKeyNode.setHead(nextInsert + 1);
 
-                child2.setParent(newKeyNode.loc());
+//                if (leftNodeChilds.)
+
+                if (rightNodeChilds.contains(child1.loc())){
+                    child1.setParent(newKeyNode.loc());
+                }
+
+                if (rightNodeChilds.contains(child2.loc())) {
+                    child2.setParent(newKeyNode.loc());
+                }else {
+                    child2.setParent(keyNode.loc());
+                }
 
                 newKeyNode.setKeys(rightNodeKeys);
                 newKeyNode.setChilds(keyTypes, recordTypes, rightNodeChilds, file);
@@ -923,6 +953,99 @@ public class BpTree {
 
         return affectedTuples;
     }
+
+
+    /**
+     * Deletes tuple from the b+ tree
+     * @param key key to remove
+     */
+    public void delete(Key key) throws IOException{
+        LeafNode leafNode = search(key);
+
+        long individual = (blockSize - 45 - leafNode.availableSpace) / leafNode.getPairs().size();
+
+        // Minimum amount of elements must be at least half
+        // of the node capacity
+        long minimumElements = (blockSize - 1) /  (2 * individual);
+
+        // If an element was not removed
+        if(!leafNode.removeEntry(key, file)) {
+            return;
+        }
+
+
+        // Nothing to balance, we're done here
+        if (leafNode.getPairs().size() >= minimumElements) {
+            return;
+        }
+
+        // If we reached here, we must balance.
+        long parentLoc = leafNode.getParent() + 1;
+        if (parentLoc != -1) {
+            file.seek(parentLoc);
+            // Load to RAM the parent node
+            KeyNode keyNode = new KeyNode(keyTypes, file);
+            ArrayList<Long> childs = keyNode.getChilds();
+            int pos = childs.indexOf(leafNode.loc());
+
+            // Check adjacent nodes for help
+            if (pos + 1 < childs.size()){
+                file.seek(childs.get(pos + 1) + 1);
+                balance(leafNode, keyNode, pos, minimumElements, true);
+                file.seek(keyNode.loc() + 1);
+            }else if (pos - 1 > 0) {
+                file.seek(childs.get(pos - 1) + 1);
+                balance(leafNode, keyNode, pos, minimumElements, false);
+            }
+
+        }
+
+    }
+
+
+    /**
+     * Method to redistribute  the tree after delete
+     * @param leafNode leafNode that's getting an element removed
+     * @param keyNode parent of the node
+     * @param pos position of the element to replace
+     * @param minimumElements minimum elements of the tree
+     * @throws IOException if something goes bad
+     */
+    private void balance(LeafNode leafNode, KeyNode keyNode,
+                         int pos, long minimumElements, boolean isRight) throws IOException{
+
+        LeafNode sibling = new LeafNode(keyTypes, recordTypes, file);
+        int index = (isRight) ? 0 : sibling.getPairs().size();
+        if (sibling.getPairs().size() > minimumElements) {
+            Pair p = sibling.remove(index, file);
+            leafNode.add(p, file);
+            Key key = sibling.getPairs().get(index).getKey();
+            keyNode.replace(pos, key, file);
+        }else {
+            // Merge the nodes
+            if (isRight)
+                mergeNodes(leafNode, sibling);
+            else
+                mergeNodes(sibling, leafNode);
+        }
+    }
+
+    /**
+     * Merges two siblings
+     * @param sibling1 least sibling
+     * @param sibling2 max sibling
+     * @throws IOException if something goes wrong
+     */
+    private void mergeNodes(LeafNode sibling1, LeafNode sibling2) throws IOException {
+        ArrayList<Pair> pairs = sibling1.getPairs();
+        while(!pairs.isEmpty()) {
+            Pair p = sibling1.remove(0, file);
+            sibling2.add(p, file);
+        }
+    }
+
+
+
 
 
 

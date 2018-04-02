@@ -106,6 +106,20 @@ public class KeyNode extends Node {
     }
 
 
+    /**
+     * Removes a key from the node
+     * @param pos pos of the element
+     * @param k key to remove
+     * @param file file to write changes to
+     * @throws IOException if something goes wrong
+     */
+    public void replace(int pos, Key k, RandomAccessFile file) throws IOException {
+        keys.set(pos, k);
+        file.seek(head + 36 + pos * k.size());
+        k.writeToFile(file);
+    }
+
+
 
     public void dump(String ident, ArrayList<Type> keyTypes,
                      ArrayList<Type> recordTypes,

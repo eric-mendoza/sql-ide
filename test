@@ -1,0 +1,9 @@
+--CREATE DATABASE universidades;
+--USE DATABASE universidades;
+--CREATE TABLE universidades(id INT NOT NULL, nombre CHAR(10) NOT NULL CONSTRAINT PK_universidades PRIMARY KEY (id), fundacion DATE NOT NULL, noEstudiantes INT NOT NULL, rating FLOAT NOT NULL);
+--INSERT INTO universidades VALUES (0, 'UVG', 1965-05-22, 2000, 8.9), (1, 'URL', 1965-05-22, 5000, 6.9), (2, 'USAC', 1765-05-22, 20000, 8.9), (3, 'UFM', 1995-05-22, 3500, 7.9);
+--CREATE TABLE estudiante(carnet INT NOT NULL, nombre CHAR(20) NOT NULL CONSTRAINT PK_estudiante PRIMARY KEY (nombre), nacimiento DATE NOT NULL, idUniversidad INT NOT NULL CONSTRAINT FK_universidad FOREIGN KEY REFERENCES universidades);
+SELECT *
+FROM universidades
+WHERE id = 3
+ORDER BY id ASC;
